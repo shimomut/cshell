@@ -1,2 +1,3 @@
 __pycache__
 cmd2_history.dat
+plugins/*.py
