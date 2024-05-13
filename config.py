@@ -1,4 +1,6 @@
 
+import plugins.private_commands
+
 class Config:    
-    pass
+    plugins = [plugins.private_commands.PrivateCommands]
 

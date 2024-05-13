@@ -12,7 +12,8 @@ from config import Config
 import osutils
 
 
-class CraftShellApp(cmd2.Cmd):
+
+class CraftShellApp(*Config.plugins, cmd2.Cmd):
 
     CATEGORY_CRAFTSHELL = "CraftShell operations"
 
