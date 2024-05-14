@@ -1,1 +1,3 @@
-# clnch4
+# CraftShell
+
+Framework for utility commands
