@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__
-cmd2_history.dat
-plugins/*.py
+plugins/*internal*.py
+plugins/*private*.py

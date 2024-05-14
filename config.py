@@ -1,6 +1,16 @@
 
-import plugins.private_commands
+import plugins.webbrowser_commands
+import plugins.clipboard_commands
+import plugins.aws_utility_commands
+import plugins.hyperpod_commands
 
 class Config:    
-    plugins = [plugins.private_commands.PrivateCommands]
 
+    plugins = [
+        plugins.webbrowser_commands.WebBrowserCommands,
+        plugins.clipboard_commands.ClipboardCommands,
+        plugins.aws_utility_commands.AwsUtilityCommands,
+        plugins.hyperpod_commands.HyperPodCommands,
+    ]
+
+    cmd_aws = ["aws"]
