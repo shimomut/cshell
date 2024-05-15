@@ -16,6 +16,7 @@ os.makedirs(data_dir, exist_ok=True)
 if not os.path.exists(config_file_path):
     shutil.copyfile(os.path.join(os.path.dirname(__file__), "_config.py"), config_file_path)
 
+# load config.py
 user_config = misc.UserConfig()
 user_config.reload(config_file_path)
 
@@ -49,6 +50,10 @@ class CraftShellApp(*user_config.get("Config").plugins, cmd2.Cmd):
     # Hooks
     
     def on_command_executed(self, data: cmd2.plugin.PostcommandData) -> cmd2.plugin.PostcommandData:
+        
+        # Save command history immediately
+        self._persist_history()
+
         return data
 
 
