@@ -1,20 +1,34 @@
 import os
+import shutil
 
 import cmd2
 
-from config import Config
+import misc
 
 
-class CraftShellApp(*Config.plugins, cmd2.Cmd):
+# .cshell paths
+data_dir = os.path.expanduser("~/.cshell")
+history_file_path = os.path.join(data_dir, "history.dat")
+config_file_path = os.path.join(data_dir, "config.py")
+
+# create config.py if it doesn't exist
+os.makedirs(data_dir, exist_ok=True)
+if not os.path.exists(config_file_path):
+    shutil.copyfile(os.path.join(os.path.dirname(__file__), "_config.py"), config_file_path)
+
+user_config = misc.UserConfig()
+user_config.reload(config_file_path)
+
+
+class CraftShellApp(*user_config.get("Config").plugins, cmd2.Cmd):
 
     def __init__(self):
 
-        self.data_dir = os.path.expanduser("~/.cshell")
-        os.makedirs(self.data_dir, exist_ok=True)
+        self.user_config = user_config
 
         super().__init__(
             multiline_commands=["echo"],
-            persistent_history_file= os.path.join(self.data_dir, "history.dat"),
+            persistent_history_file=history_file_path,
             startup_script="scripts/startup.txt",
             include_ipy=True,
         )

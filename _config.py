@@ -4,8 +4,7 @@ import plugins.clipboard_commands
 import plugins.aws_utility_commands
 import plugins.hyperpod_commands
 
-class Config:    
-
+class Config:
     plugins = [
         plugins.webbrowser_commands.WebBrowserCommands,
         plugins.clipboard_commands.ClipboardCommands,
@@ -13,4 +12,9 @@ class Config:
         plugins.hyperpod_commands.HyperPodCommands,
     ]
 
-    cmd_aws = ["aws"]
+class AwsConfig:
+    awscli = ["aws"]
+
+class HyperPodConfig:
+    home = "/fsx"
+    username = "ubuntu"

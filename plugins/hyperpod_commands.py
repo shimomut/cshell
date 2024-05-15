@@ -73,6 +73,9 @@ class HyperPodCommands:
 
         super().__init__(*args, **kwargs)
 
+        self.aws_config = self.user_config.get("AwsConfig")
+        self.hyperpod_config = self.user_config.get("HyperPodConfig")
+
         self.register_postcmd_hook(self.on_hyperpod_command_executed)
 
         self.cached_cluster_name_choices = []
@@ -642,16 +645,18 @@ class HyperPodCommands:
 
             self.poutput(f"Installing ssh public key to {node_id}")
 
-            p = pexpect.popen_spawn.PopenSpawn([*Config.cmd_aws, "ssm", "start-session", "--target", ssm_target])
+            user_home = os.path.join(self.hyperpod_config.home, self.hyperpod_config.username)
+
+            p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
             p.expect("#")
-            cmd = f"cat {Config.home_dir}/.ssh/authorized_keys"
+            cmd = f"cat {user_home}/.ssh/authorized_keys"
             p.sendline(cmd)
             p.expect("#")
 
             if public_key in p.before.decode("utf-8"):
                 self.poutput("Already installed")
             else:
-                cmd = f"echo {public_key} >> {Config.home_dir}/.ssh/authorized_keys"
+                cmd = f"echo {public_key} >> {user_home}/.ssh/authorized_keys"
                 p.sendline(cmd)
                 p.expect("#")
                 self.poutput("Done")
@@ -697,7 +702,7 @@ class HyperPodCommands:
                 self.poutput(f"Running command in {node_id}")
                 self.poutput("")
 
-                p = pexpect.popen_spawn.PopenSpawn([*Config.cmd_aws, "ssm", "start-session", "--target", ssm_target])
+                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
                 p.expect("#")
                 self.poutput(p.after.decode("utf-8"),end="")
                 p.sendline(args.command)

@@ -100,7 +100,11 @@ class Hostnames:
             Hostnames._instance = Hostnames()
         return Hostnames._instance
 
-    def __init__(self):
+    def __init__(self, user_config):
+
+        self.user_config = user_config
+        self.aws_config = self.user_config.get("AwsConfig")
+
         self.node_id_to_hostname = {}
         self.hostname_to_node_id = {}
 
@@ -120,7 +124,7 @@ class Hostnames:
                 instance_group_name = node["InstanceGroupName"]
                 ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
 
-                p = pexpect.popen_spawn.PopenSpawn([*Config.cmd_aws, "ssm", "start-session", "--target", ssm_target])
+                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
                 try:
                     p.expect("#")
                     cmd = f"hostname"
