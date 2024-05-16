@@ -151,13 +151,6 @@ class AwsUtilityCommands:
     argparser = subparsers1.add_parser("ec2", help="EC2 commands")
     subparsers2 = argparser.add_subparsers(title="sub-commands")
 
-    def do_ec2(self, args):
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("awsut ec2")
-
 
     # ---
 
@@ -285,13 +278,6 @@ class AwsUtilityCommands:
 
     argparser = subparsers1.add_parser("logs", help="Logs commands")
     subparsers2 = argparser.add_subparsers(title="sub-commands")
-
-    def do_logs(self, args):
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("awsut logs")
 
 
     # ---

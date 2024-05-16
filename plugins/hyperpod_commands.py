@@ -557,14 +557,6 @@ class HyperPodCommands:
     argparser = subparsers1.add_parser("ssh", help="Set up SSH acccess to all cluster nodes")
     subparsers2 = argparser.add_subparsers(title="sub-commands")
 
-    def do_ssh(self, args):
-        func = getattr(args, "func", None)
-        if func is not None:
-            func(self, args)
-        else:
-            self.do_help("ssh")
-
-
     # ---
 
     argparser = subparsers2.add_parser('print-config', help='Print SSH config for cluster nodes')
