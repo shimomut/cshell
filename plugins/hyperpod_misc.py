@@ -6,6 +6,8 @@ import signal
 
 import boto3
 
+import misc
+
 
 def get_region():
     boto3_session = boto3.session.Session()
@@ -100,10 +102,10 @@ class Hostnames:
             Hostnames._instance = Hostnames()
         return Hostnames._instance
 
-    def __init__(self, user_config):
+    def __init__(self):
 
-        self.user_config = user_config
-        self.aws_config = self.user_config.get("AwsConfig")
+        user_config = misc.UserConfig.instance()
+        self.aws_config = user_config.get("AwsConfig")
 
         self.node_id_to_hostname = {}
         self.hostname_to_node_id = {}

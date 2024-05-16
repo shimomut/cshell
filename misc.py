@@ -1,7 +1,14 @@
 import os
-import traceback
 
 class UserConfig:
+
+    _instance = None
+
+    @staticmethod
+    def instance():
+        if UserConfig._instance is None:
+            UserConfig._instance = UserConfig()
+        return UserConfig._instance
 
     def __init__(self):
         self.user_namespace = {}

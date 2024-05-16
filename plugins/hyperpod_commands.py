@@ -11,11 +11,14 @@ import cmd2
 from cmd2 import Bg, Fg, style
 import boto3
 
+import misc
+
 from .hyperpod_misc import *
 
 
 # TODO:
-# - parallelize ssh key installation 
+# - Make ssh config template configurable
+# - parallelize ssh key installation
 
 
 # FIXME : use poutput() instead of print()
@@ -73,8 +76,9 @@ class HyperPodCommands:
 
         super().__init__(*args, **kwargs)
 
-        self.aws_config = self.user_config.get("AwsConfig")
-        self.hyperpod_config = self.user_config.get("HyperPodConfig")
+        user_config = misc.UserConfig.instance()
+        self.aws_config = user_config.get("AwsConfig")
+        self.hyperpod_config = user_config.get("HyperPodConfig")
 
         self.register_postcmd_hook(self.on_hyperpod_command_executed)
 
@@ -600,8 +604,8 @@ class HyperPodCommands:
                         f"Host {args.cluster_name}-{instance_group_name}-{node_index}\n"
                         f"    HostName sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}\n"
                         f"    User ubuntu\n"
-                        f"    IdentityFile c:/Users/shimomut/Keys/842413447717-ec2.pem\n"
-                        f"    ProxyCommand aws.cmd --profile {profile} --region {get_region()} ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p"
+                        f"    IdentityFile ~/keys/842413447717-ec2.pem\n"
+                        f"    ProxyCommand aws --profile {profile} --region {get_region()} ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p"
                     )
 
                     node_index += 1
@@ -638,25 +642,28 @@ class HyperPodCommands:
         with open(public_key_file) as fd:
             public_key = fd.read().strip()
 
+        if len(public_key.splitlines()) > 1:
+            self.poutput(f"Public key contains multiple lines unexpectedly.")
+            return
+
         for node in nodes:
             instance_group_name = node["InstanceGroupName"]
             node_id = node["InstanceId"]
             ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
+            authorized_keys_path = os.path.join(self.hyperpod_config.home, self.hyperpod_config.username, ".ssh/authorized_keys")
 
-            self.poutput(f"Installing ssh public key to {node_id}")
-
-            user_home = os.path.join(self.hyperpod_config.home, self.hyperpod_config.username)
+            self.poutput(f"Installing ssh public key to {node_id} {authorized_keys_path}")
 
             p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
             p.expect("#")
-            cmd = f"cat {user_home}/.ssh/authorized_keys"
+            cmd = f"cat {authorized_keys_path}"
             p.sendline(cmd)
             p.expect("#")
 
             if public_key in p.before.decode("utf-8"):
                 self.poutput("Already installed")
             else:
-                cmd = f"echo {public_key} >> {user_home}/.ssh/authorized_keys"
+                cmd = f"echo {public_key} >> {authorized_keys_path}"
                 p.sendline(cmd)
                 p.expect("#")
                 self.poutput("Done")

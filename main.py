@@ -17,15 +17,13 @@ if not os.path.exists(config_file_path):
     shutil.copyfile(os.path.join(os.path.dirname(__file__), "_config.py"), config_file_path)
 
 # load config.py
-user_config = misc.UserConfig()
+user_config = misc.UserConfig.instance()
 user_config.reload(config_file_path)
 
 
 class CraftShellApp(*user_config.get("Config").plugins, cmd2.Cmd):
 
     def __init__(self):
-
-        self.user_config = user_config
 
         super().__init__(
             multiline_commands=["echo"],
