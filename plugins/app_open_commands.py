@@ -65,6 +65,22 @@ class AppOpenCommands:
         cmd = ["code", *remote_args, *path_args]
         subprocess.run(cmd)
 
-
     argparser.set_defaults(func=_do_vscode)
+
+
+    # ----------------
+    # commands - ssh
+
+    argparser = cmd2.Cmd2ArgumentParser(description="SSH to remote host")
+    argparser.add_argument("host", metavar="HOST", action="store", choices_provider=choices_ssh_hostnames, help="Host name to connect")
+
+    @cmd2.with_category(CATEGORY)
+    @cmd2.with_argparser(argparser)
+    def do_ssh(self, args):
+
+        cmd = [ "ssh", args.host ]
+        subprocess.run(cmd)
+
+
+
 
