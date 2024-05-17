@@ -68,6 +68,24 @@ class AwsUtilityCommands:
     # ----------
     # completers
 
+    def choices_aws_profiles(self, arg_tokens):
+
+        choices = []
+
+        aws_config_path = os.path.expanduser("~/.aws/config")
+        if os.path.exists(aws_config_path):
+            with open(aws_config_path) as fd:
+                for line in fd:
+                    re_result = re.match( r"\[profile\s(.+)\]", line.strip() )
+                    if re_result:
+                        profile = re_result.group(1)
+                        choices.append(profile)
+
+        choices.append("default")
+
+        return choices
+
+
     def choices_ec2_instance_names(self, arg_tokens):
 
         if self.cached_ec2_instance_name_choices:
@@ -137,6 +155,19 @@ class AwsUtilityCommands:
             func(self, args)
         else:
             self.do_help("awsut")
+
+
+    # ------------------
+    # commands - profile
+
+    argparser = subparsers1.add_parser("profile", help="Switch AWS profile")
+    argparser.add_argument("profile_name", metavar="PROFILE_NAME", action="store", choices_provider=choices_aws_profiles, help="Name of profile")
+
+    def _do_profile(self, args):
+        self.poutput( f"Switching AWS profile to {args.profile_name}" )
+        os.environ["AWS_PROFILE"] = args.profile_name
+
+    argparser.set_defaults(func=_do_profile)
 
 
     # ----------------
