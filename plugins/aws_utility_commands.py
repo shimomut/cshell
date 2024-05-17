@@ -21,6 +21,8 @@ class AwsUtilityCommands:
         self.register_postcmd_hook(self.on_awsut_command_executed)
 
         self.cached_ec2_instance_name_choices = []
+        self.cached_log_group_name_choices = []
+        self.cached_log_stream_name_choices = {}
 
 
     # -----
@@ -30,6 +32,8 @@ class AwsUtilityCommands:
 
         # Clean completer cache after each command execution
         self.cached_ec2_instance_name_choices = []
+        self.cached_log_group_name_choices = []
+        self.cached_log_stream_name_choices = {}
 
         return data
 
@@ -85,6 +89,38 @@ class AwsUtilityCommands:
                     self.cached_cluster_name_choices.append(name)
 
         return self.cached_cluster_name_choices
+
+
+    def choices_log_group_names(self, arg_tokens):
+
+        if self.cached_log_group_name_choices:
+            return self.cached_log_group_name_choices
+
+        for log_group in self._list_log_groups_all(""):
+            self.cached_log_group_name_choices.append(log_group["logGroupName"])
+
+        return self.cached_log_group_name_choices
+
+
+    def choices_log_stream_names(self, arg_tokens):
+
+        group_name = None
+        group_names = arg_tokens["group_name"]
+        if len(group_names)==1:
+            group_name = group_names[0]
+
+        if group_name:
+            if group_name in self.cached_log_stream_name_choices:
+                return self.cached_log_stream_name_choices[group_name]
+
+        self.cached_log_stream_name_choices[group_name] = []
+
+        logs_client = self.get_logs_client()
+        response = logs_client.describe_log_streams(logGroupName = group_name)
+        for stream in response["logStreams"]:
+            self.cached_log_stream_name_choices[group_name].append(stream["logStreamName"])
+
+        return self.cached_log_stream_name_choices[group_name]
 
 
     # --------
@@ -356,8 +392,8 @@ class AwsUtilityCommands:
     # ---
 
     argparser = subparsers2.add_parser('monitor', help='Monitor a log stream')
-    argparser.add_argument("group_name", metavar="GROUP_NAME", help="Log group name")
-    argparser.add_argument("stream_name", metavar="STREAM_NAME", help="Log stream name to monitor")
+    argparser.add_argument("group_name", metavar="GROUP_NAME", choices_provider=choices_log_group_names, help="Log group name")
+    argparser.add_argument("stream_name", metavar="STREAM_NAME", choices_provider=choices_log_stream_names, help="Log stream name to monitor")
     argparser.add_argument('--freq', action='store', type=int, default=5, help='Polling frequency in seconds')
     argparser.add_argument('--lookback', action='store', type=int, default=60, help='Lookback window in minutes')
 
