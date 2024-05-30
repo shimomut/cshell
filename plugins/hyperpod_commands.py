@@ -283,7 +283,7 @@ class HyperPodCommands:
 
             self.poutput( format_string.format( cluster["ClusterName"], cluster["ClusterStatus"], cluster["CreationTime"].strftime("%Y/%m/%d %H:%M:%S"), cluster["ClusterArn"] ) )
 
-            if cluster["ClusterStatus"] in ["Failed"]:
+            if cluster["ClusterStatus"] in ["Failed", "RollingBack"]:
 
                 cluster_details = sagemaker_client.describe_cluster(
                     ClusterName = cluster["ClusterName"]
@@ -326,7 +326,7 @@ class HyperPodCommands:
         self.poutput(f"Cluster Arn : {cluster['ClusterArn']}")
         self.poutput(f"Cluster status : {cluster['ClusterStatus']}")
 
-        if cluster["ClusterStatus"] in ["Failed"]:
+        if "FailureMessage" in cluster and cluster["FailureMessage"]:
             self.poutput(f"Failure message : {cluster['FailureMessage']}")
 
         self.poutput("")
