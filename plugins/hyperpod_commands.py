@@ -470,7 +470,7 @@ class HyperPodCommands:
                 self.poutput("-" * len(header))
                 self.poutput(header)
                 self.poutput("-" * len(header))
-                logs.print_log(logs_client, log_group, stream)
+                print_log(logs_client, log_group, stream)
                 self.poutput(f"")
 
                 found = True
