@@ -54,9 +54,11 @@ class WebBrowserCommands:
         query = urllib.parse.quote_plus(text)
 
         if src_lang == "en":
-            url = f"https://translate.google.co.jp/#en/ja/{query}"
+            url = f"https://translate.google.co.jp/?sl=en&tl=ja&text={query}&op=translate"
         elif src_lang == "ja":
-            url = f"https://translate.google.co.jp/#ja/en/{query}"
+            url = f"https://translate.google.co.jp/?sl=ja&tl=en&text={query}&op=translate"
+
+        self.poutput(f"Opening {url}")
 
         webbrowser.open(url)        
 
