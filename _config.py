@@ -13,8 +13,10 @@ class Config:
         plugins.hyperpod_commands.HyperPodCommands,
     ]
 
+
 class AwsConfig:
     awscli = ["aws"]
+
 
 class HyperPodConfig:
     home = "/fsx"
