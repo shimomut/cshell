@@ -72,6 +72,8 @@ class HyperPodCommands:
 
     CATEGORY = "HyperPod operations"
 
+    hyperpod_endpoint = ""
+
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -85,6 +87,9 @@ class HyperPodCommands:
         self.cached_cluster_name_choices = []
         self.cached_node_id_choices = {}
 
+        self.add_settable(
+            cmd2.Settable('hyperpod_endpoint', str, 'Endpoint URL for HyperPod', HyperPodCommands)
+        )
 
     # -----
     # Hooks
@@ -105,7 +110,10 @@ class HyperPodCommands:
     @staticmethod
     def get_sagemaker_client():
         if not HyperPodCommands._sagemaker_client:
-            HyperPodCommands._sagemaker_client = boto3.client("sagemaker")
+            endpoint_url = None
+            if HyperPodCommands.hyperpod_endpoint:
+                endpoint_url = HyperPodCommands.hyperpod_endpoint
+            HyperPodCommands._sagemaker_client = boto3.client("sagemaker", endpoint_url=endpoint_url)
         return HyperPodCommands._sagemaker_client
 
     _logs_client = None
