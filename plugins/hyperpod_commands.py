@@ -80,7 +80,6 @@ class HyperPodCommands:
 
         user_config = misc.UserConfig.instance()
         self.aws_config = user_config.get("AwsConfig")
-        self.hyperpod_config = user_config.get("HyperPodConfig")
 
         self.register_postcmd_hook(self.on_hyperpod_command_executed)
 
@@ -619,6 +618,7 @@ class HyperPodCommands:
 
     argparser = subparsers2.add_parser('install-key', help='Install SSH public key to all cluster nodes')
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("home_path", metavar="HOME_PATH", action="store", help="Path to home directory on the cluster (e.g. /fsx/ubuntu)")
     argparser.add_argument("public_key_file", metavar="PUBLIC_KEY_FILE", action="store", completer=cmd2.Cmd.path_complete, help="SSH public key file")
     
     def _do_ssh_install_key(self, args):
@@ -650,7 +650,7 @@ class HyperPodCommands:
             instance_group_name = node["InstanceGroupName"]
             node_id = node["InstanceId"]
             ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
-            authorized_keys_path = os.path.join(self.hyperpod_config.home, self.hyperpod_config.username, ".ssh/authorized_keys")
+            authorized_keys_path = os.path.join(args.home_path, ".ssh/authorized_keys")
 
             self.poutput(f"Installing ssh public key to {node_id} {authorized_keys_path}")
 

@@ -17,7 +17,3 @@ class Config:
 class AwsConfig:
     awscli = ["aws"]
 
-
-class HyperPodConfig:
-    home = "/fsx"
-    username = "ubuntu"
