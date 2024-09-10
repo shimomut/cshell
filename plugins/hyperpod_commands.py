@@ -72,6 +72,7 @@ class HyperPodCommands:
 
     CATEGORY = "HyperPod operations"
 
+    sagemaker_service_name = "sagemaker"
     hyperpod_endpoint = ""
 
     def __init__(self, *args, **kwargs):
@@ -88,6 +89,10 @@ class HyperPodCommands:
 
         self.add_settable(
             cmd2.Settable('hyperpod_endpoint', str, 'Endpoint URL for HyperPod', HyperPodCommands)
+        )
+
+        self.add_settable(
+            cmd2.Settable('sagemaker_service_name', str, 'SageMaker service name', HyperPodCommands)
         )
 
     # -----
@@ -112,8 +117,17 @@ class HyperPodCommands:
             endpoint_url = None
             if HyperPodCommands.hyperpod_endpoint:
                 endpoint_url = HyperPodCommands.hyperpod_endpoint
-            HyperPodCommands._sagemaker_client = boto3.client("sagemaker", endpoint_url=endpoint_url)
+            HyperPodCommands._sagemaker_client = boto3.client(HyperPodCommands.sagemaker_service_name, endpoint_url=endpoint_url)
         return HyperPodCommands._sagemaker_client
+
+
+    _eks_client = None
+    @staticmethod
+    def get_eks_client():
+        if not HyperPodCommands._eks_client:
+            HyperPodCommands._eks_client = boto3.client("eks")
+        return HyperPodCommands._eks_client
+
 
     _logs_client = None
     @staticmethod
@@ -219,6 +233,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("create", help="Create a cluster with JSON file")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", help="Name of cluster")
+    argparser.add_argument("--eks-cluster-name", action="store", default=None, help="Name of EKS cluster")
     argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
     argparser.add_argument("--vpc", action="store", required=False, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for VPC")
 
@@ -227,6 +242,17 @@ class HyperPodCommands:
         params = {
             "ClusterName" : args.cluster_name,
         }
+
+        if args.eks_cluster_name:
+            eks_client = self.get_eks_client()
+            eks_cluster_desc = eks_client.describe_cluster(name=args.eks_cluster_name)
+            eks_cluster_arn = eks_cluster_desc["cluster"]["arn"]
+            params["Orchestrator"] = {
+                "Eks": {
+                    "ClusterArn": eks_cluster_arn
+                }
+            }
+            params["NodeRecovery"] = "Automatic"
 
         with open(os.path.expanduser(args.instances)) as fd:
             params["InstanceGroups"] = json.loads(fd.read())
@@ -568,6 +594,7 @@ class HyperPodCommands:
 
     argparser = subparsers2.add_parser('print-config', help='Print SSH config for cluster nodes')
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("user", metavar="USER", action="store", choices=["ubuntu","ec2-user"], help="User name")
 
     def _do_ssh_print_config(self, args):
 
@@ -602,7 +629,7 @@ class HyperPodCommands:
                     self.poutput(
                         f"Host {args.cluster_name}-{instance_group_name}-{node_index}\n"
                         f"    HostName sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}\n"
-                        f"    User ubuntu\n"
+                        f"    User {args.user}\n"
                         f"    IdentityFile ~/keys/842413447717-ec2.pem\n"
                         f"    ProxyCommand aws --profile {profile} --region {get_region()} ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p"
                     )
