@@ -17,7 +17,6 @@ from .hyperpod_misc import *
 
 
 # TODO:
-# - Make ssh config template configurable
 # - parallelize ssh key installation
 
 
@@ -182,7 +181,7 @@ class HyperPodCommands:
             raise cmd2.CompletionError(f"Cluster [{cluster_name}] not found.")
         
         hostnames = Hostnames.instance()
-        hostnames.resolve(cluster, nodes)
+        hostnames.resolve(sagemaker_client, cluster, nodes)
         
         # add choice from existing nodes
         for node in nodes:
@@ -353,7 +352,7 @@ class HyperPodCommands:
         nodes = list_cluster_nodes_all( sagemaker_client, args.cluster_name )
 
         hostnames = Hostnames.instance()
-        hostnames.resolve(cluster, nodes)
+        hostnames.resolve(sagemaker_client, cluster, nodes)
 
         self.poutput(f"Cluster name : {cluster['ClusterName']}")
         self.poutput(f"Cluster Arn : {cluster['ClusterArn']}")
@@ -491,7 +490,7 @@ class HyperPodCommands:
         if args.node_id.startswith("ip-"):
             nodes = list_cluster_nodes_all( sagemaker_client, args.cluster_name )
             hostnames = Hostnames.instance()
-            hostnames.resolve(cluster, nodes)
+            hostnames.resolve(sagemaker_client, cluster, nodes)
             args.node_id = hostnames.get_node_id(args.node_id)
 
         found = False
@@ -543,7 +542,7 @@ class HyperPodCommands:
         # Convert hostname to node id
         if args.node_id.startswith("ip-"):
             hostnames = Hostnames.instance()
-            hostnames.resolve(cluster, nodes)
+            hostnames.resolve(sagemaker_client, cluster, nodes)
             args.node_id = hostnames.get_node_id(args.node_id)
 
         for node in nodes:

@@ -110,9 +110,9 @@ class Hostnames:
         self.node_id_to_hostname = {}
         self.hostname_to_node_id = {}
 
-    def resolve(self, cluster, nodes):
+    def resolve(self, sagemaker_client, cluster, nodes):
 
-        cluster_id = cluster["ClusterArn"].split("/")[-1]
+        cluster_name = cluster["ClusterName"]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=16) as thread_pool:
             
@@ -122,27 +122,9 @@ class Hostnames:
 
                 if node_id in self.node_id_to_hostname and self.node_id_to_hostname[node_id]:
                     return self.node_id_to_hostname[node_id]
-
-                instance_group_name = node["InstanceGroupName"]
-                ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
-
-                hostname = None
-
-                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
-                try:
-                    p.expect("#")
-                    cmd = f"hostname"
-                    p.sendline(cmd)
-                    p.expect("#")
-
-                    for line in p.before.decode("utf-8").strip().splitlines():
-                        if line.startswith("ip-"):
-                            hostname = line
-                            break
-                except pexpect.exceptions.EOF:
-                    pass
-
-                p.kill(signal.SIGINT)
+                
+                response = sagemaker_client.describe_cluster_node(ClusterName=cluster_name, NodeId=node_id)
+                hostname = response["NodeDetails"]["PrivateDnsHostname"].split(".")[0]
 
                 return hostname
 
