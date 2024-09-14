@@ -4,6 +4,7 @@ import json
 import pprint
 import subprocess
 import signal
+import concurrent.futures
 
 import pexpect
 import pexpect.popen_spawn
@@ -14,10 +15,6 @@ import boto3
 import misc
 
 from .hyperpod_misc import *
-
-
-# TODO:
-# - parallelize ssh key installation
 
 
 # FIXME : use poutput() instead of print()
@@ -672,29 +669,36 @@ class HyperPodCommands:
             self.poutput(f"Public key contains multiple lines unexpectedly.")
             return
 
-        for node in nodes:
-            instance_group_name = node["InstanceGroupName"]
-            node_id = node["InstanceId"]
-            ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
-            authorized_keys_path = os.path.join(args.home_path, ".ssh/authorized_keys")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as thread_pool:
+            
+            def install_key_to_single_node(node):
 
-            self.poutput(f"Installing ssh public key to {node_id} {authorized_keys_path}")
+                instance_group_name = node["InstanceGroupName"]
+                node_id = node["InstanceId"]
+                ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
+                authorized_keys_path = os.path.join(args.home_path, ".ssh/authorized_keys")
+                promt = ["sh-4.2#","#"]
 
-            p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
-            p.expect("#")
-            cmd = f"cat {authorized_keys_path}"
-            p.sendline(cmd)
-            p.expect("#")
+                self.poutput(f"Installing ssh public key to {node_id} {authorized_keys_path}")
 
-            if public_key in p.before.decode("utf-8"):
-                self.poutput("Already installed")
-            else:
-                cmd = f"echo {public_key} >> {authorized_keys_path}"
-                p.sendline(cmd)
-                p.expect("#")
-                self.poutput("Done")
+                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
+                p.expect(promt)
 
-            p.kill(signal.SIGINT)
+                cmd = [
+                    f'if ! grep -q "{public_key}" {authorized_keys_path}; then',
+                    f"  echo {public_key} >> {authorized_keys_path}",
+                    f"fi",
+                ]
+
+                for line in cmd:
+                    p.sendline(line)
+
+                p.expect(promt)
+
+                p.kill(signal.SIGINT)
+
+            for result in thread_pool.map(install_key_to_single_node, nodes):
+                pass
 
     argparser.set_defaults(func=_do_ssh_install_key)
 
