@@ -44,24 +44,11 @@ class CraftShellApp(*Config.plugins, cmd2.Cmd):
         #self.intro = cmd2.style("Welcome to CraftShell", fg=cmd2.Fg.RED, bg=cmd2.Bg.WHITE, bold=True)
         self.prompt = cmd2.style("▶ ", fg=cmd2.Fg.GREEN, bg=None, bold=False)
 
-        self.register_postcmd_hook(self.on_command_executed)
-
         # Allow access to your application in py and ipy via self
         self.self_in_py = True
 
         # Set the default category name
         self.default_category = "cmd2 Built-in Commands"
-
-
-    # -----
-    # Hooks
-    
-    def on_command_executed(self, data: cmd2.plugin.PostcommandData) -> cmd2.plugin.PostcommandData:
-        
-        # Save command history immediately
-        self._persist_history()
-
-        return data
 
 
 if __name__ == "__main__":
