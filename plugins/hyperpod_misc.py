@@ -1,9 +1,5 @@
 
 import concurrent.futures
-import pexpect
-import pexpect.popen_spawn
-import signal
-
 import boto3
 
 import misc
