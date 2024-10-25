@@ -106,31 +106,12 @@ class HyperPodCommands:
     # -------------
     # boto3 clients
 
-    _sagemaker_client = None
     @staticmethod
     def get_sagemaker_client():
-        if not HyperPodCommands._sagemaker_client:
-            endpoint_url = None
-            if HyperPodCommands.hyperpod_endpoint:
-                endpoint_url = HyperPodCommands.hyperpod_endpoint
-            HyperPodCommands._sagemaker_client = boto3.client(HyperPodCommands.sagemaker_service_name, endpoint_url=endpoint_url)
-        return HyperPodCommands._sagemaker_client
-
-
-    _eks_client = None
-    @staticmethod
-    def get_eks_client():
-        if not HyperPodCommands._eks_client:
-            HyperPodCommands._eks_client = boto3.client("eks")
-        return HyperPodCommands._eks_client
-
-
-    _logs_client = None
-    @staticmethod
-    def get_logs_client():
-        if not HyperPodCommands._logs_client:
-            HyperPodCommands._logs_client = boto3.client("logs")
-        return HyperPodCommands._logs_client
+        endpoint_url = None
+        if HyperPodCommands.hyperpod_endpoint:
+            endpoint_url = HyperPodCommands.hyperpod_endpoint
+        return boto3.client(HyperPodCommands.sagemaker_service_name, endpoint_url=endpoint_url)
 
 
     # ----------
@@ -163,7 +144,7 @@ class HyperPodCommands:
         choices = self.cached_node_id_choices[cluster_name]
 
         sagemaker_client = self.get_sagemaker_client()
-        logs_client = self.get_logs_client()
+        logs_client = boto3.client("logs")
 
         try:
             cluster = sagemaker_client.describe_cluster(
@@ -240,7 +221,7 @@ class HyperPodCommands:
         }
 
         if args.eks_cluster_name:
-            eks_client = self.get_eks_client()
+            eks_client = boto3.client("eks")
             eks_cluster_desc = eks_client.describe_cluster(name=args.eks_cluster_name)
             eks_cluster_arn = eks_cluster_desc["cluster"]["arn"]
             params["Orchestrator"] = {
@@ -464,7 +445,7 @@ class HyperPodCommands:
     def _do_log(self, args):
 
         sagemaker_client = self.get_sagemaker_client()
-        logs_client = self.get_logs_client()
+        logs_client = boto3.client("logs")
 
         try:
             cluster = sagemaker_client.describe_cluster(
