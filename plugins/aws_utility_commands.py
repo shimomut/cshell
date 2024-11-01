@@ -59,6 +59,21 @@ class AwsUtilityCommands:
         return choices
 
 
+    def choices_aws_regions(self, arg_tokens):
+
+        choices = [
+            "us-east-1",
+            "us-east-2",
+            "us-west-1",
+            "us-west-2",
+            "ap-south-1",
+            "ap-southeast-2",
+            "ap-northeast-1",
+        ]
+
+        return choices
+
+
     def choices_ec2_instance_names(self, arg_tokens):
 
         if self.cached_ec2_instance_name_choices:
@@ -141,6 +156,19 @@ class AwsUtilityCommands:
         os.environ["AWS_PROFILE"] = args.profile_name
 
     argparser.set_defaults(func=_do_profile)
+
+
+    # ------------------
+    # commands - region
+
+    argparser = subparsers1.add_parser("region", help="Switch AWS region")
+    argparser.add_argument("region_name", metavar="REGION_NAME", action="store", choices_provider=choices_aws_regions, help="Name of region")
+
+    def _do_region(self, args):
+        self.poutput( f"Switching AWS region to {args.region_name}" )
+        os.environ["AWS_REGION"] = args.region_name
+
+    argparser.set_defaults(func=_do_region)
 
 
     # ----------------
