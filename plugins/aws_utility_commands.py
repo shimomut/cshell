@@ -79,7 +79,7 @@ class AwsUtilityCommands:
         if self.cached_ec2_instance_name_choices:
             return self.cached_ec2_instance_name_choices
 
-        ec2_client = boto3.client("ec2")
+        ec2_client = get_boto3_client("ec2")
         response = ec2_client.describe_instances()
         
         for reservations in response["Reservations"]:
@@ -121,7 +121,7 @@ class AwsUtilityCommands:
 
         self.cached_log_stream_name_choices[group_name] = []
 
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
         response = logs_client.describe_log_streams(logGroupName = group_name)
         for stream in response["logStreams"]:
             self.cached_log_stream_name_choices[group_name].append(stream["logStreamName"])
@@ -154,6 +154,7 @@ class AwsUtilityCommands:
     def _do_profile(self, args):
         self.poutput( f"Switching AWS profile to {args.profile_name}" )
         os.environ["AWS_PROFILE"] = args.profile_name
+        boto3.setup_default_session(profile_name=args.profile_name)
 
     argparser.set_defaults(func=_do_profile)
 
@@ -179,7 +180,7 @@ class AwsUtilityCommands:
 
     def _do_recent_cost(self, args):
 
-        client = boto3.client("ce")
+        client = get_boto3_client("ce")
 
         today = datetime.datetime.now().date()
         period_end = today + datetime.timedelta( days=1 )
@@ -226,7 +227,7 @@ class AwsUtilityCommands:
 
     def _do_ec2_list(self, args):
 
-        ec2_client = boto3.client("ec2")
+        ec2_client = get_boto3_client("ec2")
 
         response = ec2_client.describe_instances()
         
@@ -276,7 +277,7 @@ class AwsUtilityCommands:
 
     def _do_ec2_start(self, args):
 
-        ec2_client = boto3.client("ec2")
+        ec2_client = get_boto3_client("ec2")
         response = ec2_client.describe_instances()
         
         def _start(instance):
@@ -300,7 +301,7 @@ class AwsUtilityCommands:
 
     def _do_ec2_stop(self, args):
 
-        ec2_client = boto3.client("ec2")
+        ec2_client = get_boto3_client("ec2")
         response = ec2_client.describe_instances()
         
         def _stop(instance):
@@ -324,7 +325,7 @@ class AwsUtilityCommands:
 
     def _do_ec2_reboot(self, args):
 
-        ec2_client = boto3.client("ec2")
+        ec2_client = get_boto3_client("ec2")
         response = ec2_client.describe_instances()
         
         def _reboot(instance):
@@ -352,7 +353,7 @@ class AwsUtilityCommands:
 
     def _list_log_groups_all(self, prefix):
 
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
 
         log_groups = []
         next_tolen = None
@@ -388,7 +389,7 @@ class AwsUtilityCommands:
 
     def _do_logs_list(self, args):
 
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
 
         if args.group_name is None:
             args.group_name = "*"
@@ -431,7 +432,7 @@ class AwsUtilityCommands:
 
     def _do_logs_monitor(self, args):
 
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
 
         start_time = int( ( time.time() - args.lookback * 60 ) * 1000 )
 
@@ -493,7 +494,7 @@ class AwsUtilityCommands:
     def _do_logs_export(self, args):
 
         exporter = LogsExporter(
-            logs_client=boto3.client("logs"),
+            logs_client = get_boto3_client("logs"),
             log_group=args.group_name, 
             s3_path=args.s3_path, 
             start_datetime=args.start_datetime, 

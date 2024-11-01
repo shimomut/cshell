@@ -14,6 +14,7 @@ import boto3
 
 import misc
 
+from .aws_misc import *
 from .hyperpod_misc import *
 
 
@@ -108,10 +109,16 @@ class HyperPodCommands:
 
     @staticmethod
     def get_sagemaker_client():
+
         endpoint_url = None
         if HyperPodCommands.hyperpod_endpoint:
             endpoint_url = HyperPodCommands.hyperpod_endpoint
-        return boto3.client(HyperPodCommands.sagemaker_service_name, endpoint_url=endpoint_url)
+
+        region_name = None
+        if "AWS_REGION" in os.environ:
+            region_name = os.environ["AWS_REGION"]
+
+        return boto3.client(HyperPodCommands.sagemaker_service_name, region_name=region_name, endpoint_url=endpoint_url)
 
 
     # ----------
@@ -144,7 +151,7 @@ class HyperPodCommands:
         choices = self.cached_node_id_choices[cluster_name]
 
         sagemaker_client = self.get_sagemaker_client()
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
 
         try:
             cluster = sagemaker_client.describe_cluster(
@@ -221,7 +228,7 @@ class HyperPodCommands:
         }
 
         if args.eks_cluster_name:
-            eks_client = boto3.client("eks")
+            eks_client = get_boto3_client("eks")
             eks_cluster_desc = eks_client.describe_cluster(name=args.eks_cluster_name)
             eks_cluster_arn = eks_cluster_desc["cluster"]["arn"]
             params["Orchestrator"] = {
@@ -445,7 +452,7 @@ class HyperPodCommands:
     def _do_log(self, args):
 
         sagemaker_client = self.get_sagemaker_client()
-        logs_client = boto3.client("logs")
+        logs_client = get_boto3_client("logs")
 
         try:
             cluster = sagemaker_client.describe_cluster(

@@ -9,6 +9,16 @@ import shutil
 
 import boto3
 
+
+def get_boto3_client(service_name):
+
+    region_name = None
+    if "AWS_REGION" in os.environ:
+        region_name = os.environ["AWS_REGION"]
+
+    return boto3.client(service_name, region_name=region_name)
+
+
 class LogsExporter:
 
     def __init__(self, logs_client, log_group, s3_path, start_datetime, end_datetime):
@@ -86,7 +96,7 @@ class LogsExporter:
             
         # Download files to local
         
-        s3 = boto3.client("s3")
+        s3 = get_boto3_client("s3")
 
         exported_s3_prefix = s3_prefix + "/" + export_task_id
         response = s3.list_objects_v2( Bucket = s3_bucket, Prefix=exported_s3_prefix )
@@ -161,7 +171,7 @@ class LogsExporter:
 
     def createAccountInfoFile( self, dirname ):
 
-        sts = boto3.client("sts")
+        sts = get_boto3_client("sts")
 
         account_id = sts.get_caller_identity()["Account"]
         region_name = sts.meta.region_name
