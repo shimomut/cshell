@@ -137,7 +137,7 @@ class HyperPodCommands:
         return self.cached_cluster_name_choices
 
 
-    def choices_node_ids(self, arg_tokens):
+    def choices_node_ids(self, arg_tokens, with_cwlog):
 
         cluster_name = None
         cluster_names = arg_tokens["cluster_name"]
@@ -187,14 +187,21 @@ class HyperPodCommands:
             raise cmd2.CompletionError(f"Log group [{log_group}] not found.")
 
         # add choice from log stream names
-        for stream in streams:
-            stream_name = stream["logStreamName"]
-            instance_group_name = stream_name.split("/")[-2]
-            node_id = stream_name.split("/")[-1]
-            choices.append(node_id)
-            choices.append( instance_group_name + "/" + node_id )
+        if with_cwlog:
+            for stream in streams:
+                stream_name = stream["logStreamName"]
+                instance_group_name = stream_name.split("/")[-2]
+                node_id = stream_name.split("/")[-1]
+                choices.append(node_id)
+                choices.append( instance_group_name + "/" + node_id )
 
         return choices
+
+    def choices_node_ids_with_cwlog(self, arg_tokens):
+        return self.choices_node_ids(arg_tokens, with_cwlog=True)
+
+    def choices_node_ids_without_cwlog(self, arg_tokens):
+        return self.choices_node_ids(arg_tokens, with_cwlog=False)
 
 
     # --------
@@ -447,7 +454,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("log", help="Print log from a cluster node")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("node_id", metavar="NODE_ID", action="store", choices_provider=choices_node_ids, help="Id of node")
+    argparser.add_argument("node_id", metavar="NODE_ID", action="store", choices_provider=choices_node_ids_with_cwlog, help="Id of node")
 
     def _do_log(self, args):
 
@@ -502,7 +509,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("ssm", help="Login to a cluster node with SSM")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("node_id", metavar="NODE_ID", action="store", choices_provider=choices_node_ids, help="Id of node")
+    argparser.add_argument("node_id", metavar="NODE_ID", action="store", choices_provider=choices_node_ids_without_cwlog, help="Id of node")
 
     def _do_ssm(self, args):
 
