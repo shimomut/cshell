@@ -263,6 +263,42 @@ class HyperPodCommands:
 
     # ---
 
+    argparser = subparsers1.add_parser("update", help="Update a cluster with JSON file")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", help="Name of cluster")
+    argparser.add_argument("--eks-cluster-name", action="store", default=None, help="Name of EKS cluster")
+    argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
+
+    def _do_update(self, args):
+
+        params = {
+            "ClusterName" : args.cluster_name,
+        }
+
+        if args.eks_cluster_name:
+            eks_client = get_boto3_client("eks")
+            eks_cluster_desc = eks_client.describe_cluster(name=args.eks_cluster_name)
+            eks_cluster_arn = eks_cluster_desc["cluster"]["arn"]
+            params["Orchestrator"] = {
+                "Eks": {
+                    "ClusterArn": eks_cluster_arn
+                }
+            }
+            params["NodeRecovery"] = "Automatic"
+
+        with open(os.path.expanduser(args.instances)) as fd:
+            params["InstanceGroups"] = json.loads(fd.read())
+
+        sagemaker_client = self.get_sagemaker_client()
+        response = sagemaker_client.update_cluster(**params)
+
+        cluster_arn = response["ClusterArn"]
+        self.poutput(f"Updating cluster started : {cluster_arn}")
+
+    argparser.set_defaults(func=_do_update)
+
+
+    # ---
+
     argparser = subparsers1.add_parser("delete", help="Delete a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("-y", "--yes", action="store_true", default=False, help="Skip confirmation")
