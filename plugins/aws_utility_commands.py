@@ -69,6 +69,7 @@ class AwsUtilityCommands:
             "ap-south-1",
             "ap-southeast-2",
             "ap-northeast-1",
+            "default",
         ]
 
         return choices
@@ -166,8 +167,18 @@ class AwsUtilityCommands:
     argparser.add_argument("region_name", metavar="REGION_NAME", action="store", choices_provider=choices_aws_regions, help="Name of region")
 
     def _do_region(self, args):
-        self.poutput( f"Switching AWS region to {args.region_name}" )
-        os.environ["AWS_REGION"] = args.region_name
+        if args.region_name in ["", "default"]:
+            self.poutput( f"Switching to default AWS region" )
+            if "AWS_REGION" in os.environ:
+                del os.environ["AWS_REGION"]
+        else:
+            if "AWS_REGION" in os.environ:
+                current_region = os.environ["AWS_REGION"]
+            else:
+                current_region = "default"
+            
+            self.poutput( f"Switching AWS region from {current_region} to {args.region_name}" )
+            os.environ["AWS_REGION"] = args.region_name
 
     argparser.set_defaults(func=_do_region)
 
