@@ -275,14 +275,6 @@ class HyperPodCommands:
         }
 
         if args.eks_cluster_name:
-            eks_client = get_boto3_client("eks")
-            eks_cluster_desc = eks_client.describe_cluster(name=args.eks_cluster_name)
-            eks_cluster_arn = eks_cluster_desc["cluster"]["arn"]
-            params["Orchestrator"] = {
-                "Eks": {
-                    "ClusterArn": eks_cluster_arn
-                }
-            }
             params["NodeRecovery"] = "Automatic"
 
         with open(os.path.expanduser(args.instances)) as fd:
