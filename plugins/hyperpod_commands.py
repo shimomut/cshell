@@ -823,7 +823,7 @@ class HyperPodCommands:
 
             training_plan_offerings = response["TrainingPlanOfferings"]
 
-            format_string = "{:<16} : {:<2}:{:<02} : {} : {}"
+            format_string = "{:<16} : {:<3}:{:<02} : {} : {}"
 
             for training_plan_offering in training_plan_offerings:
                 for offering in training_plan_offering["ReservedCapacityOfferings"]:
