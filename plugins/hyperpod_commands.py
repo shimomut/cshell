@@ -108,15 +108,15 @@ class HyperPodCommands:
     # boto3 clients
 
     @staticmethod
-    def get_sagemaker_client():
+    def get_sagemaker_client(region_name=None):
 
         endpoint_url = None
         if HyperPodCommands.hyperpod_endpoint:
             endpoint_url = HyperPodCommands.hyperpod_endpoint
 
-        region_name = None
-        if "AWS_REGION" in os.environ:
-            region_name = os.environ["AWS_REGION"]
+        if region_name is None:
+            if "AWS_REGION" in os.environ:
+                region_name = os.environ["AWS_REGION"]
 
         return boto3.client(HyperPodCommands.sagemaker_service_name, region_name=region_name, endpoint_url=endpoint_url)
 
@@ -264,7 +264,7 @@ class HyperPodCommands:
     # ---
 
     argparser = subparsers1.add_parser("update", help="Update a cluster with JSON file")
-    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", help="Name of cluster")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--eks-cluster-name", action="store", default=None, help="Name of EKS cluster")
     argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
 
@@ -287,6 +287,26 @@ class HyperPodCommands:
         self.poutput(f"Updating cluster started : {cluster_arn}")
 
     argparser.set_defaults(func=_do_update)
+
+
+    # ---
+
+    argparser = subparsers1.add_parser("update-software", help="Update a cluster with JSON file")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+
+    def _do_update_software(self, args):
+
+        params = {
+            "ClusterName" : args.cluster_name,
+        }
+
+        sagemaker_client = self.get_sagemaker_client()
+        response = sagemaker_client.update_cluster_software(**params)
+
+        cluster_arn = response["ClusterArn"]
+        self.poutput(f"Updating cluster software started : {cluster_arn}")
+
+    argparser.set_defaults(func=_do_update_software)
 
 
     # ---
@@ -774,3 +794,45 @@ class HyperPodCommands:
 
     argparser.set_defaults(func=_do_run)
 
+
+    # ---
+
+    _search_capacity_regions = [ "us-east-1", "us-east-2", "us-west-2", "ap-northeast-1" ]
+    _instance_type_choices = [
+        "ml.trn1.32xlarge", "ml.p5.48xlarge", "ml.p4d.24xlarge", "ml.t3.xlarge", "ml.trn2.48xlarge", "ml.p5e.48xlarge", "ml.c4.large", "ml.c6i.large", "ml.t3.2xlarge", "ml.p5en.48xlarge", "ml.t3.large", "ml.c7g.medium"
+    ]
+
+    argparser = subparsers1.add_parser("search-capacity", help="Search Flexible Training Plans offerings in all regions")
+    argparser.add_argument("--instance-type", action="store", required=True, choices=_instance_type_choices, help="Instance type (e.g. ml.p5.48xlarge)")
+    argparser.add_argument("--instance-count", action="store", type=int, required=True, help="Number of instances")
+    argparser.add_argument("--duration-hours", action="store", type=int, required=True, help="Requested duration in hours")
+
+    def _do_search_capacity(self, args):
+
+        for region in HyperPodCommands._search_capacity_regions:
+
+            params = {
+                "TargetResources" : ["hyperpod-cluster"],
+                "InstanceType" : args.instance_type,
+                "InstanceCount" : args.instance_count,
+                "DurationHours" : args.duration_hours,
+            }
+
+            sagemaker_client = self.get_sagemaker_client(region_name=region)
+            response = sagemaker_client.search_training_plan_offerings(**params)
+
+            training_plan_offerings = response["TrainingPlanOfferings"]
+
+            format_string = "{:<16} : {:<2}:{:<02} : {} : {}"
+
+            for training_plan_offering in training_plan_offerings:
+                for offering in training_plan_offering["ReservedCapacityOfferings"]:
+                    self.poutput( format_string.format( offering["AvailabilityZone"], offering["DurationHours"], offering["DurationMinutes"], offering["StartTime"], offering["EndTime"] ) )
+
+                self.poutput("---")
+
+
+    argparser.set_defaults(func=_do_search_capacity)
+
+
+    # ---
