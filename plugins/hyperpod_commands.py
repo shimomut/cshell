@@ -357,9 +357,16 @@ class HyperPodCommands:
 
             if cluster["ClusterStatus"] in ["Failed", "RollingBack"]:
 
-                cluster_details = sagemaker_client.describe_cluster(
-                    ClusterName = cluster["ClusterName"]
-                )
+                try:
+                    cluster_details = sagemaker_client.describe_cluster(
+                        ClusterName = cluster["ClusterName"]
+                    )
+                except sagemaker_client.exceptions.ResourceNotFound:
+                    self.poutput("")
+                    self.poutput(f"FailureMessage not available.")
+                    self.poutput("")
+                    self.poutput("---")
+                    continue
 
                 self.poutput("")
                 for line in cluster_details["FailureMessage"].splitlines():
