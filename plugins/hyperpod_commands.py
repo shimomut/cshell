@@ -291,7 +291,7 @@ class HyperPodCommands:
 
     # ---
 
-    argparser = subparsers1.add_parser("update-software", help="Update a cluster with JSON file")
+    argparser = subparsers1.add_parser("update-software", help="Update the AMI of a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
 
     def _do_update_software(self, args):
