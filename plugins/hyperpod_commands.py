@@ -63,14 +63,21 @@ def print_log(logs_client, log_group, stream):
 
 
 
-
-
 class HyperPodCommands:
 
     CATEGORY = "HyperPod operations"
 
     sagemaker_service_name = "sagemaker"
     hyperpod_endpoint = ""
+
+    hyperpod_regions = [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+        "ap-south-1",
+        "ap-southeast-2",
+    ]
 
     def __init__(self, *args, **kwargs):
 
@@ -341,38 +348,49 @@ class HyperPodCommands:
     # ---
 
     argparser = subparsers1.add_parser("list", help="List clusters in human readable format")
-    argparser.add_argument("--details", action="store_true", default=False, help="Show details" )
+    argparser.add_argument("--all-regions", action="store_true", default=False, help="List clusters in all regions" )
 
     def _do_list(self, args):
 
-        sagemaker_client = self.get_sagemaker_client()
+        def _list_single_region(region_name=None):
 
-        clusters = list_clusters_all(sagemaker_client)
+            sagemaker_client = self.get_sagemaker_client(region_name=region_name)
 
-        format_string = "{:<%d} : {:<%d} : {} : {}" % (get_max_len(clusters,"ClusterName"), get_max_len(clusters,"ClusterStatus"))
+            clusters = list_clusters_all(sagemaker_client)
 
-        for cluster in clusters:
+            format_string = "{:<%d} : {:<%d} : {} : {}" % (get_max_len(clusters,"ClusterName"), get_max_len(clusters,"ClusterStatus"))
 
-            self.poutput( format_string.format( cluster["ClusterName"], cluster["ClusterStatus"], cluster["CreationTime"].strftime("%Y/%m/%d %H:%M:%S"), cluster["ClusterArn"] ) )
+            for cluster in clusters:
 
-            if cluster["ClusterStatus"] in ["Failed", "RollingBack"]:
+                self.poutput( format_string.format( cluster["ClusterName"], cluster["ClusterStatus"], cluster["CreationTime"].strftime("%Y/%m/%d %H:%M:%S"), cluster["ClusterArn"] ) )
 
-                try:
-                    cluster_details = sagemaker_client.describe_cluster(
-                        ClusterName = cluster["ClusterName"]
-                    )
-                except sagemaker_client.exceptions.ResourceNotFound:
+                if cluster["ClusterStatus"] in ["Failed", "RollingBack"]:
+
+                    try:
+                        cluster_details = sagemaker_client.describe_cluster(
+                            ClusterName = cluster["ClusterName"]
+                        )
+                    except sagemaker_client.exceptions.ResourceNotFound:
+                        self.poutput("")
+                        self.poutput(f"FailureMessage not available.")
+                        self.poutput("")
+                        self.poutput("---")
+                        continue
+
                     self.poutput("")
-                    self.poutput(f"FailureMessage not available.")
+                    for line in cluster_details["FailureMessage"].splitlines():
+                        self.poutput(f"{line}")
                     self.poutput("")
                     self.poutput("---")
-                    continue
 
+        if args.all_regions:
+            for region in HyperPodCommands.hyperpod_regions:
+                self.poutput(f"[{region}]")
+                _list_single_region(region_name=region)
                 self.poutput("")
-                for line in cluster_details["FailureMessage"].splitlines():
-                    self.poutput(f"{line}")
-                self.poutput("")
-                self.poutput("---")
+        else:
+            _list_single_region()
+
 
     argparser.set_defaults(func=_do_list)
 
@@ -804,7 +822,8 @@ class HyperPodCommands:
 
     # ---
 
-    _search_capacity_regions = [ "us-east-1", "us-east-2", "us-west-2", "ap-northeast-1" ]
+    #_search_capacity_regions = [ "us-east-1", "us-east-2", "us-west-2", "ap-northeast-1" ]
+    _search_capacity_regions = [ "us-east-1", "us-west-2", "ap-northeast-1" ]
     _instance_type_choices = [
         "ml.trn1.32xlarge", "ml.p5.48xlarge", "ml.p4d.24xlarge", "ml.t3.xlarge", "ml.trn2.48xlarge", "ml.p5e.48xlarge", "ml.c4.large", "ml.c6i.large", "ml.t3.2xlarge", "ml.p5en.48xlarge", "ml.t3.large", "ml.c7g.medium"
     ]
