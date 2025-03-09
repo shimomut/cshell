@@ -811,11 +811,12 @@ class HyperPodCommands:
                 self.poutput(f"Running command in {node_id}")
                 self.poutput("")
 
-                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
-                p.expect("#")
+                p = pexpect.spawn(*self.aws_config.awscli, ["ssm", "start-session", "--target", ssm_target])
+                p.expect("sh-.*#")
+                p.expect("sh-.*#") # not sure why this is needed, but it is. Guessing there is a newline char sent by spawn that we dont know about
                 self.poutput(p.after.decode("utf-8"),end="")
                 p.sendline(args.command)
-                p.expect("#")
+                p.expect("sh-.*#")
                 self.poutput(p.before.decode("utf-8"),end="")
                 p.kill(signal.SIGINT)
 
