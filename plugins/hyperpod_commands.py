@@ -862,3 +862,36 @@ class HyperPodCommands:
 
 
     # ---
+
+    argparser = subparsers1.add_parser("kubeconfig", help="Update kubeconfig with the EKS cluster")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of HyperPod cluster")
+
+    def _do_kubeconfig(self, args):
+
+        sagemaker_client = self.get_sagemaker_client()
+
+        try:
+            cluster = sagemaker_client.describe_cluster(
+                ClusterName = args.cluster_name
+            )
+        except sagemaker_client.exceptions.ResourceNotFound:
+            self.poutput(f"Cluster [{args.cluster_name}] not found.")
+            return
+        
+        try:
+            eks_arn = cluster["Orchestrator"]["Eks"]["ClusterArn"]
+        except KeyError:
+            self.poutput(f"EKS cluster ARN not found in the HyperPod cluster description.")
+            return
+
+        eks_name = eks_arn.split("/")[-1]
+
+        with self.sigint_protection:
+            cmd = ["aws", "eks", "update-kubeconfig", "--name", eks_name]
+            subprocess.run(cmd)
+
+
+    argparser.set_defaults(func=_do_kubeconfig)
+
+
+    # ---
