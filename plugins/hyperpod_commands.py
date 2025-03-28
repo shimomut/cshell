@@ -68,7 +68,7 @@ class HyperPodCommands:
     CATEGORY = "HyperPod operations"
 
     sagemaker_service_name = "sagemaker"
-    hyperpod_endpoint = ""
+    hyperpod_endpoint = os.getenv("HYPERPOD_ENDPOINT", "")
 
     hyperpod_regions = [
         "us-east-1",
@@ -774,13 +774,11 @@ class HyperPodCommands:
     # ---
 
     argparser = subparsers1.add_parser("run", help="Run single line command in all nodes of specified instance group")
-    argparser.add_argument("--cluster-name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--instance-group-name", action="store", required=True, help="Instance group name")
     argparser.add_argument("--command", action="store", required=True, help="Single line of command to run")
     argparser.add_argument("--instances", nargs="+", action="store", required=False, default=[], help="Instances to target")
 
-    # @cmd2.with_category(CATEGORY)
-    # @cmd2.with_argparser(argparser)
     def _do_run(self, args):
 
         sagemaker_client = self.get_sagemaker_client()
@@ -812,11 +810,13 @@ class HyperPodCommands:
                 self.poutput("")
 
                 p = pexpect.spawn(*self.aws_config.awscli, ["ssm", "start-session", "--target", ssm_target])
-                p.expect("sh-.*#")
-                p.expect("sh-.*#") # not sure why this is needed, but it is. Guessing there is a newline char sent by spawn that we dont know about
-                self.poutput(p.after.decode("utf-8"),end="")
+                p.expect(["\r\n.*sh-.*# ", "\r\n# "])
+                after = p.after.decode("utf-8")
+                if not after.endswith("\r\n# "):
+                    p.expect("sh-.*# ")
+                self.poutput(after, end="")
                 p.sendline(args.command)
-                p.expect("sh-.*#")
+                p.expect(["sh-.*# ", "# "])
                 self.poutput(p.before.decode("utf-8"),end="")
                 p.kill(signal.SIGINT)
 
