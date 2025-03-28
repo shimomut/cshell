@@ -810,11 +810,10 @@ class HyperPodCommands:
                 self.poutput("")
 
                 p = pexpect.spawn(*self.aws_config.awscli, ["ssm", "start-session", "--target", ssm_target])
-                p.expect(["\r\n.*sh-.*# ", "\r\n# "])
-                after = p.after.decode("utf-8")
-                if not after.endswith("\r\n# "):
-                    p.expect("sh-.*# ")
-                self.poutput(after, end="")
+                # For some reason on AL2 AMI (used by HyperPod+EKS), there are two shell prompts
+                # in the output after connecting so we account for that here with the very strange expected prompt
+                p.expect(["\r\n.*sh-.*# .*sh-.*#", "\r\n# "])
+                self.poutput(p.after.decode("utf-8"), end="")
                 p.sendline(args.command)
                 p.expect(["sh-.*# ", "# "])
                 self.poutput(p.before.decode("utf-8"),end="")
