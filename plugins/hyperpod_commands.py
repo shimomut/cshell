@@ -68,7 +68,7 @@ class HyperPodCommands:
     CATEGORY = "HyperPod operations"
 
     sagemaker_service_name = "sagemaker"
-    hyperpod_endpoint = ""
+    hyperpod_endpoint = os.getenv("HYPERPOD_ENDPOINT", "")
 
     hyperpod_regions = [
         "us-east-1",
@@ -777,9 +777,8 @@ class HyperPodCommands:
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--instance-group-name", action="store", required=True, help="Instance group name")
     argparser.add_argument("--command", action="store", required=True, help="Single line of command to run")
+    argparser.add_argument("--instances", nargs="+", action="store", required=False, default=[], help="Instances to target")
 
-    @cmd2.with_category(CATEGORY)
-    @cmd2.with_argparser(argparser)
     def _do_run(self, args):
 
         sagemaker_client = self.get_sagemaker_client()
@@ -802,16 +801,21 @@ class HyperPodCommands:
             if instance_group_name==args.instance_group_name:
 
                 node_id = node["InstanceId"]
+                if args.instances and node_id not in args.instances:
+                    print(f"Skipping {node_id}")
+                    continue
                 ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
 
                 self.poutput(f"Running command in {node_id}")
                 self.poutput("")
 
-                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
-                p.expect("#")
-                self.poutput(p.after.decode("utf-8"),end="")
+                p = pexpect.spawn(*self.aws_config.awscli, ["ssm", "start-session", "--target", ssm_target])
+                # For some reason on AL2 AMI (used by HyperPod+EKS), there are two shell prompts
+                # in the output after connecting so we account for that here with the very strange expected prompt
+                p.expect(["\r\n.*sh-.*# .*sh-.*#", "\r\n# "])
+                self.poutput(p.after.decode("utf-8"), end="")
                 p.sendline(args.command)
-                p.expect("#")
+                p.expect(["sh-.*# ", "# "])
                 self.poutput(p.before.decode("utf-8"),end="")
                 p.kill(signal.SIGINT)
 
