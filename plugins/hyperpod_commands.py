@@ -89,6 +89,7 @@ class HyperPodCommands:
         self.register_postcmd_hook(self.on_hyperpod_command_executed)
 
         self.cached_cluster_name_choices = []
+        self.cached_instance_group_name_choices = {}
         self.cached_node_id_choices = {}
 
         self.add_settable(
@@ -106,6 +107,7 @@ class HyperPodCommands:
 
         # Clean completer cache after each command execution
         self.cached_cluster_name_choices = []
+        self.cached_instance_group_name_choices = {}
         self.cached_node_id_choices = {}
 
         return data
@@ -142,6 +144,34 @@ class HyperPodCommands:
             self.cached_cluster_name_choices.append( cluster["ClusterName"] )
 
         return self.cached_cluster_name_choices
+
+
+    def choices_instance_group_names(self, arg_tokens):
+
+        cluster_name = None
+        cluster_names = arg_tokens["cluster_name"]
+        if len(cluster_names)==1:
+            cluster_name = cluster_names[0]
+
+        if cluster_name in self.cached_instance_group_name_choices:
+            return self.cached_instance_group_name_choices[cluster_name]
+
+        self.cached_instance_group_name_choices[cluster_name] = []
+        choices = self.cached_instance_group_name_choices[cluster_name]
+
+        sagemaker_client = self.get_sagemaker_client()
+
+        try:
+            cluster = sagemaker_client.describe_cluster(
+                ClusterName = cluster_name
+            )
+        except sagemaker_client.exceptions.ResourceNotFound:
+            raise cmd2.CompletionError(f"Cluster [{cluster_name}] not found.")
+
+        for instance_group in cluster["InstanceGroups"]:
+            choices.append(instance_group["InstanceGroupName"])
+
+        return choices
 
 
     def choices_node_ids(self, arg_tokens, with_cwlog):
@@ -775,7 +805,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("run", help="Run single line command in all nodes of specified instance group")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("--instance-group-name", action="store", required=True, help="Instance group name")
+    argparser.add_argument("--instance-group-name", action="store", required=True, choices_provider=choices_instance_group_names, help="Instance group name")
     argparser.add_argument("--command", action="store", required=True, help="Single line of command to run")
     argparser.add_argument("--instances", nargs="+", action="store", required=False, default=[], help="Instances to target")
 
