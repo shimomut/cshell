@@ -795,10 +795,24 @@ class HyperPodCommands:
 
         cluster_id = cluster["ClusterArn"].split("/")[-1]
 
+        debug = False
+        custom_prompt = r"pexpect# "
+
+        num_found = 0
+
+        def print_pexpect_output(p):
+            if debug:
+                self.poutput("Before:" + str([p.before.decode("utf-8")]))
+                self.poutput("After :" + str([p.after.decode("utf-8")]))
+            else:
+                self.poutput(p.before.decode("utf-8") + p.after.decode("utf-8"), end="")
+
         for node in nodes:
             instance_group_name = node["InstanceGroupName"]
 
             if instance_group_name==args.instance_group_name:
+
+                num_found += 1
 
                 node_id = node["InstanceId"]
                 if args.instances and node_id not in args.instances:
@@ -809,17 +823,31 @@ class HyperPodCommands:
                 self.poutput(f"Running command in {node_id}")
                 self.poutput("")
 
-                p = pexpect.spawn(*self.aws_config.awscli, ["ssm", "start-session", "--target", ssm_target])
-                # For some reason on AL2 AMI (used by HyperPod+EKS), there are two shell prompts
-                # in the output after connecting so we account for that here with the very strange expected prompt
-                p.expect(["\r\n.*sh-.*# .*sh-.*#", "\r\n# "])
-                self.poutput(p.after.decode("utf-8"), end="")
+                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
+                
+                # Wait for first prompt
+                p.expect(["# "])
+                print_pexpect_output(p)
+
+                # Customize prompt
+                p.sendline(f'export PS1="{custom_prompt}"')
+                p.expect("\n" + custom_prompt)
+                print_pexpect_output(p)
+
+                # Run command
                 p.sendline(args.command)
-                p.expect(["sh-.*# ", "# "])
-                self.poutput(p.before.decode("utf-8"),end="")
+                p.expect(custom_prompt)
+                print_pexpect_output(p)
+
                 p.kill(signal.SIGINT)
 
-                self.poutput("-----")
+                self.poutput("")
+                self.poutput("")
+                self.poutput("---")
+
+        if num_found==0:
+            self.poutput(f"No node found in the instance group [{args.instance_group_name}].")
+            return
 
     argparser.set_defaults(func=_do_run)
 
