@@ -805,9 +805,9 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("run", help="Run single line command in all nodes of specified instance group")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("--instance-group-name", action="store", required=True, choices_provider=choices_instance_group_names, help="Instance group name")
+    argparser.add_argument("--instance-group-name", action="store", required=False, choices_provider=choices_instance_group_names, help="Instance group name")
+    argparser.add_argument("--instances", nargs="+", action="store", required=False, default=[], choices_provider=choices_node_ids_without_cwlog, help="Instances to target")
     argparser.add_argument("--command", action="store", required=True, help="Single line of command to run")
-    argparser.add_argument("--instances", nargs="+", action="store", required=False, default=[], help="Instances to target")
 
     def _do_run(self, args):
 
@@ -825,10 +825,23 @@ class HyperPodCommands:
 
         cluster_id = cluster["ClusterArn"].split("/")[-1]
 
+        node_ids = []
+        for instance in args.instances:
+
+            # Remove instance group name part
+            if "/" in instance:
+                instance = instance.split("/")[-1]
+
+            # Convert hostname to node id
+            if instance.startswith("ip-"):
+                hostnames = Hostnames.instance()
+                hostnames.resolve(sagemaker_client, cluster, nodes)
+                instance = hostnames.get_node_id(instance)
+            
+            node_ids.append(instance)
+
         debug = False
         custom_prompt = r"pexpect# "
-
-        num_found = 0
 
         def print_pexpect_output(p):
             if debug:
@@ -839,45 +852,42 @@ class HyperPodCommands:
 
         for node in nodes:
             instance_group_name = node["InstanceGroupName"]
+            node_id = node["InstanceId"]
 
-            if instance_group_name==args.instance_group_name:
+            if args.instance_group_name and instance_group_name != args.instance_group_name:
+                print(f"Skipping {instance_group_name}/{node_id}")
+                continue
 
-                num_found += 1
+            if node_ids and node_id not in node_ids:
+                print(f"Skipping {instance_group_name}/{node_id}")
+                continue
 
-                node_id = node["InstanceId"]
-                if args.instances and node_id not in args.instances:
-                    print(f"Skipping {node_id}")
-                    continue
-                ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
+            ssm_target = f"sagemaker-cluster:{cluster_id}_{instance_group_name}-{node_id}"
 
-                self.poutput(f"Running command in {node_id}")
-                self.poutput("")
+            self.poutput(f"Running command in {node_id}")
+            self.poutput("")
 
-                p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
-                
-                # Wait for first prompt
-                p.expect(["# "])
-                print_pexpect_output(p)
+            p = pexpect.popen_spawn.PopenSpawn([*self.aws_config.awscli, "ssm", "start-session", "--target", ssm_target])
+            
+            # Wait for first prompt
+            p.expect(["# "])
+            print_pexpect_output(p)
 
-                # Customize prompt
-                p.sendline(f'export PS1="{custom_prompt}"')
-                p.expect("\n" + custom_prompt)
-                print_pexpect_output(p)
+            # Customize prompt
+            p.sendline(f'export PS1="{custom_prompt}"')
+            p.expect("\n" + custom_prompt)
+            print_pexpect_output(p)
 
-                # Run command
-                p.sendline(args.command)
-                p.expect(custom_prompt)
-                print_pexpect_output(p)
+            # Run command
+            p.sendline(args.command)
+            p.expect(custom_prompt)
+            print_pexpect_output(p)
 
-                p.kill(signal.SIGINT)
+            p.kill(signal.SIGINT)
 
-                self.poutput("")
-                self.poutput("")
-                self.poutput("---")
-
-        if num_found==0:
-            self.poutput(f"No node found in the instance group [{args.instance_group_name}].")
-            return
+            self.poutput("")
+            self.poutput("")
+            self.poutput("---")
 
     argparser.set_defaults(func=_do_run)
 
