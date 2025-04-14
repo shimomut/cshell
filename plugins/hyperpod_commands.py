@@ -302,7 +302,6 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("update", help="Update a cluster with JSON file")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("--eks-cluster-name", action="store", default=None, help="Name of EKS cluster")
     argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
 
     def _do_update(self, args):
@@ -311,13 +310,23 @@ class HyperPodCommands:
             "ClusterName" : args.cluster_name,
         }
 
-        if args.eks_cluster_name:
-            params["NodeRecovery"] = "Automatic"
+        sagemaker_client = self.get_sagemaker_client()
+
+        try:
+            cluster = sagemaker_client.describe_cluster(
+                ClusterName = args.cluster_name
+            )
+        except sagemaker_client.exceptions.ResourceNotFound:
+            self.poutput(f"Cluster [{args.cluster_name}] not found.")
+            return
+
+        if "NodeRecovery" in cluster:
+            params["NodeRecovery"] = cluster["NodeRecovery"]
+
 
         with open(os.path.expanduser(args.instances)) as fd:
             params["InstanceGroups"] = json.loads(fd.read())
 
-        sagemaker_client = self.get_sagemaker_client()
         response = sagemaker_client.update_cluster(**params)
 
         cluster_arn = response["ClusterArn"]
