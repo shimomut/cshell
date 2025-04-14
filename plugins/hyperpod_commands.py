@@ -328,6 +328,54 @@ class HyperPodCommands:
 
     # ---
 
+    argparser = subparsers1.add_parser("scale", help="Scale up or down a instance group")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("--instance-group-name", action="store", required=True, choices_provider=choices_instance_group_names, help="Instance group name")
+    argparser.add_argument("--instance-count", action="store", type=int, required=True, help="Target instance count")
+
+    def _do_scale(self, args):
+
+        params = {
+            "ClusterName" : args.cluster_name,
+            "InstanceGroups" : [],
+        }
+
+        sagemaker_client = self.get_sagemaker_client()
+
+        try:
+            cluster = sagemaker_client.describe_cluster(
+                ClusterName = args.cluster_name
+            )
+        except sagemaker_client.exceptions.ResourceNotFound:
+            self.poutput(f"Cluster [{args.cluster_name}] not found.")
+            return
+
+        if "NodeRecovery" in cluster:
+            params["NodeRecovery"] = cluster["NodeRecovery"]
+
+        for instance_group in cluster["InstanceGroups"]:
+
+            instance_group["InstanceCount"] = instance_group["TargetCount"]
+            del instance_group["CurrentCount"]
+            del instance_group["TargetCount"]
+            del instance_group["Status"]
+            del instance_group["TrainingPlanStatus"]
+            
+            if instance_group["InstanceGroupName"]==args.instance_group_name:
+                instance_group["InstanceCount"] = args.instance_count
+
+            params["InstanceGroups"].append(instance_group)
+        
+        response = sagemaker_client.update_cluster(**params)
+
+        cluster_arn = response["ClusterArn"]
+        self.poutput(f"Updating cluster started : {cluster_arn}")
+
+    argparser.set_defaults(func=_do_scale)
+
+
+    # ---
+
     argparser = subparsers1.add_parser("update-software", help="Update the AMI of a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
 
