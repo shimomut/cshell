@@ -339,8 +339,8 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("scale", help="Scale up or down a instance group")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("--instance-group-name", action="store", required=True, choices_provider=choices_instance_group_names, help="Instance group name")
-    argparser.add_argument("--instance-count", action="store", type=int, required=True, help="Target instance count")
+    argparser.add_argument("instance_group_name", metavar="INSTANCE_GROUP_NAME", action="store", choices_provider=choices_instance_group_names, help="Instance group name")
+    argparser.add_argument("target_instance_count", metavar="TARGET_INSTANCE_COUNT", action="store", type=int, help="Target instance count")
 
     def _do_scale(self, args):
 
@@ -371,7 +371,7 @@ class HyperPodCommands:
             del instance_group["TrainingPlanStatus"]
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
-                instance_group["InstanceCount"] = args.instance_count
+                instance_group["InstanceCount"] = args.target_instance_count
 
             params["InstanceGroups"].append(instance_group)
         
