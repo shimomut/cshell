@@ -584,8 +584,18 @@ class HyperPodCommands:
 
             # Wait instance creation/deletion
             while True:
-                num_in_progress = 0
                 status_list = []
+
+                try:
+                    cluster = sagemaker_client.describe_cluster(
+                        ClusterName = args.cluster_name
+                    )
+                except sagemaker_client.exceptions.ResourceNotFound:
+                    self.poutput(f"Cluster [{args.cluster_name}] not found.")
+                    return
+
+                if cluster["ClusterStatus"] not in ["InService","Failed"]:
+                    status_list.append(f"{args.cluster_name}:{cluster['ClusterStatus']}")
 
                 nodes = list_cluster_nodes_all( sagemaker_client, args.cluster_name )
 
@@ -597,11 +607,10 @@ class HyperPodCommands:
 
                     if node_status not in ["Running","Failed"]:
                         status_list.append(f"{instance_group_name}:{node_id}:{node_status}")
-                        num_in_progress += 1
 
                 progress_dots.tick(", ".join(status_list))
 
-                if num_in_progress==0:
+                if len(status_list)==0:
                     progress_dots.tick(None)
                     break
 
