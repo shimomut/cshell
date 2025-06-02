@@ -179,6 +179,7 @@ class AwsUtilityCommands:
             
             self.poutput( f"Switching AWS region from {current_region} to {args.region_name}" )
             os.environ["AWS_REGION"] = args.region_name
+            os.environ["AWS_DEFAULT_REGION"] = args.region_name
 
     argparser.set_defaults(func=_do_region)
 
