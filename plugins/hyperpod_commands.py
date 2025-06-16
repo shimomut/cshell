@@ -387,12 +387,45 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("update-software", help="Update the AMI of a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("--instance-group-name", action="store", required=False, choices_provider=choices_instance_group_names, help="Instance group name to apply software update (default: all instance groups)")
+    argparser.add_argument("--rolling-update-by", action="store", required=False, help="Number or percentage of instances to update at the same time (e.g., 4, 10%, default: all at once)")
 
     def _do_update_software(self, args):
 
         params = {
             "ClusterName" : args.cluster_name,
         }
+
+        if args.instance_group_name:
+            params["InstanceGroups"] = [{"InstanceGroupName": args.instance_group_name}]
+
+        if args.rolling_update_by:
+
+            print("args.rolling_update_by:", args.rolling_update_by)
+
+            params["DeploymentConfig"] = {}
+
+            re_result_count = re.match("([0-9]+)", args.rolling_update_by)
+            if re_result_count:
+                params["DeploymentConfig"]["RollingUpdatePolicy"] = {
+                    "MaximumBatchSize": {
+                        "Type": "INSTANCE_COUNT",
+                        "Value": int(re_result_count.group(1))
+                    }
+                }
+
+            re_result_percentage = re.match("([0-9]+)%", args.rolling_update_by)
+            if re_result_percentage:
+                params["DeploymentConfig"]["RollingUpdatePolicy"] = {
+                    "MaximumBatchSize": {
+                        "Type": "CAPACITY_PERCENTAGE",
+                        "Value": int(re_result_percentage.group(1))
+                    }
+                }
+            
+            if "RollingUpdatePolicy" not in params["DeploymentConfig"]:
+                self.poutput(f"Rolling update parameter incorrectly formatted [{args.rolling_update_by}]")
+                return
 
         sagemaker_client = self.get_sagemaker_client()
         response = sagemaker_client.update_cluster_software(**params)
