@@ -554,9 +554,13 @@ class HyperPodCommands:
             if hostname:
                 max_hostname_len = max(max_hostname_len,len(hostname))
 
-        format_string = "{:<%d} : {} : {:<%d} : {:<%d} : {} : {}" % (get_max_len(nodes,"InstanceGroupName"), max_hostname_len, get_max_len(nodes,("InstanceStatus","Status"))+1)
+        format_string_ig = "{:<%d} : {}" % (get_max_len(nodes,"InstanceGroupName"))
+        format_string_node = "    {} : {:<%d} : {:<%d} : {} : {}" % (max_hostname_len, get_max_len(nodes,("InstanceStatus","Status"))+1)
 
         for instance_group in cluster["InstanceGroups"]:
+
+            self.poutput(format_string_ig.format( instance_group["InstanceGroupName"], instance_group["InstanceType"] ))
+            
             for node in nodes:
                 if node["InstanceGroupName"]==instance_group["InstanceGroupName"]:
 
@@ -571,7 +575,7 @@ class HyperPodCommands:
                     if node_status in ["Pending"]:
                         node_status = "*" + node_status
 
-                    self.poutput(format_string.format( instance_group_name, node_id, hostname, node_status, node["LaunchTime"].strftime("%Y/%m/%d %H:%M:%S"), ssm_target ))
+                    self.poutput(format_string_node.format( node_id, hostname, node_status, node["LaunchTime"].strftime("%Y/%m/%d %H:%M:%S"), ssm_target ))
 
                     if "Message" in node["InstanceStatus"] and node["InstanceStatus"]["Message"]:
                         message = node["InstanceStatus"]["Message"]
@@ -580,6 +584,8 @@ class HyperPodCommands:
                             self.poutput(line)
                         self.poutput("")
                         self.poutput("---")
+
+            self.poutput("")
 
     argparser.set_defaults(func=_do_describe)
 
