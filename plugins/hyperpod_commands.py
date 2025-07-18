@@ -263,6 +263,7 @@ class HyperPodCommands:
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", help="Name of cluster")
     argparser.add_argument("--eks-cluster-name", action="store", default=None, help="Name of EKS cluster")
     argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
+    argparser.add_argument("--restricted-instances", action="store", required=False, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for restricted instance groups")
     argparser.add_argument("--vpc", action="store", required=False, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for VPC")
 
     def _do_create(self, args):
@@ -285,6 +286,10 @@ class HyperPodCommands:
         with open(os.path.expanduser(args.instances)) as fd:
             params["InstanceGroups"] = json.loads(fd.read())
 
+        if args.restricted_instances:
+            with open(os.path.expanduser(args.rig_instances)) as fd:
+                params["RestrictedInstanceGroups"] = json.loads(fd.read())
+
         if args.vpc:
             with open(os.path.expanduser(args.vpc)) as fd:
                 params["VpcConfig"] = json.loads(fd.read())
@@ -303,6 +308,7 @@ class HyperPodCommands:
     argparser = subparsers1.add_parser("update", help="Update a cluster with JSON file")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--instances", action="store", required=True, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for instance groups")
+    argparser.add_argument("--restricted-instances", action="store", required=False, completer=cmd2.Cmd.path_complete, help="JSON formatted config file path for restricted instance groups")
 
     def _do_update(self, args):
 
@@ -326,6 +332,10 @@ class HyperPodCommands:
 
         with open(os.path.expanduser(args.instances)) as fd:
             params["InstanceGroups"] = json.loads(fd.read())
+
+        if args.restricted_instances:
+            with open(os.path.expanduser(args.restricted_instances)) as fd:
+                params["RestrictedInstanceGroups"] = json.loads(fd.read())
 
         response = sagemaker_client.update_cluster(**params)
 
