@@ -171,6 +171,9 @@ class HyperPodCommands:
         for instance_group in cluster["InstanceGroups"]:
             choices.append(instance_group["InstanceGroupName"])
 
+        for instance_group in cluster["RestrictedInstanceGroups"]:
+            choices.append(instance_group["InstanceGroupName"])
+
         return choices
 
 
@@ -357,6 +360,7 @@ class HyperPodCommands:
         params = {
             "ClusterName" : args.cluster_name,
             "InstanceGroups" : [],
+            "RestrictedInstanceGroups" : [],
         }
 
         sagemaker_client = self.get_sagemaker_client()
@@ -384,6 +388,19 @@ class HyperPodCommands:
                 instance_group["InstanceCount"] = args.target_instance_count
 
             params["InstanceGroups"].append(instance_group)
+        
+        for instance_group in cluster["RestrictedInstanceGroups"]:
+
+            instance_group["InstanceCount"] = instance_group["TargetCount"]
+            del instance_group["CurrentCount"]
+            del instance_group["TargetCount"]
+            del instance_group["Status"]
+            del instance_group["TrainingPlanStatus"]
+            
+            if instance_group["InstanceGroupName"]==args.instance_group_name:
+                instance_group["InstanceCount"] = args.target_instance_count
+
+            params["RestrictedInstanceGroups"].append(instance_group)
         
         response = sagemaker_client.update_cluster(**params)
 
@@ -567,7 +584,7 @@ class HyperPodCommands:
         format_string_ig = "{:<%d} : {}" % (get_max_len(nodes,"InstanceGroupName"))
         format_string_node = "    {} : {:<%d} : {:<%d} : {} : {}" % (max_hostname_len, get_max_len(nodes,("InstanceStatus","Status"))+1)
 
-        for instance_group in cluster["InstanceGroups"]:
+        for instance_group in (cluster["InstanceGroups"] + cluster["RestrictedInstanceGroups"]):
 
             self.poutput(format_string_ig.format( instance_group["InstanceGroupName"], instance_group["InstanceType"] ))
             
@@ -826,7 +843,7 @@ class HyperPodCommands:
         else:
             profile = "default"
 
-        for instance_group in cluster["InstanceGroups"]:
+        for instance_group in (cluster["InstanceGroups"] + cluster["RestrictedInstanceGroups"]):
             node_index = 0
             for node in nodes:
                 if node["InstanceGroupName"]==instance_group["InstanceGroupName"]:
