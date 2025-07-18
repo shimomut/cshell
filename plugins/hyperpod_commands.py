@@ -396,6 +396,7 @@ class HyperPodCommands:
             del instance_group["TargetCount"]
             del instance_group["Status"]
             del instance_group["TrainingPlanStatus"]
+            del instance_group["EnvironmentConfig"]["S3OutputPath"]
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
                 instance_group["InstanceCount"] = args.target_instance_count
