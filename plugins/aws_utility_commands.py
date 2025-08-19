@@ -171,6 +171,7 @@ class AwsUtilityCommands:
             self.poutput( f"Switching to default AWS region" )
             if "AWS_REGION" in os.environ:
                 del os.environ["AWS_REGION"]
+                del os.environ["AWS_DEFAULT_REGION"]
         else:
             if "AWS_REGION" in os.environ:
                 current_region = os.environ["AWS_REGION"]
