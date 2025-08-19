@@ -273,6 +273,7 @@ class HyperPodCommands:
 
         params = {
             "ClusterName" : args.cluster_name,
+            "NodeRecovery" : "Automatic",
         }
 
         if args.eks_cluster_name:
@@ -284,7 +285,7 @@ class HyperPodCommands:
                     "ClusterArn": eks_cluster_arn
                 }
             }
-            params["NodeRecovery"] = "Automatic"
+            params["NodeProvisioningMode"] = "Continuous"
 
         with open(os.path.expanduser(args.instances)) as fd:
             params["InstanceGroups"] = json.loads(fd.read())
@@ -359,8 +360,6 @@ class HyperPodCommands:
 
         params = {
             "ClusterName" : args.cluster_name,
-            "InstanceGroups" : [],
-            "RestrictedInstanceGroups" : [],
         }
 
         sagemaker_client = self.get_sagemaker_client()
@@ -376,6 +375,9 @@ class HyperPodCommands:
         if "NodeRecovery" in cluster:
             params["NodeRecovery"] = cluster["NodeRecovery"]
 
+        if cluster["InstanceGroups"]:
+            params["InstanceGroups"] = []
+
         for instance_group in cluster["InstanceGroups"]:
 
             instance_group["InstanceCount"] = instance_group["TargetCount"]
@@ -389,6 +391,9 @@ class HyperPodCommands:
 
             params["InstanceGroups"].append(instance_group)
         
+        if cluster["RestrictedInstanceGroups"]:
+            params["RestrictedInstanceGroups"] = []
+
         for instance_group in cluster["RestrictedInstanceGroups"]:
 
             instance_group["InstanceCount"] = instance_group["TargetCount"]
@@ -582,12 +587,12 @@ class HyperPodCommands:
             if hostname:
                 max_hostname_len = max(max_hostname_len,len(hostname))
 
-        format_string_ig = "{:<%d} : {}" % (get_max_len(nodes,"InstanceGroupName"))
+        format_string_ig = "{:<%d} : {} : {}({}=>{})" % (get_max_len(nodes,"InstanceGroupName"))
         format_string_node = "    {} : {:<%d} : {:<%d} : {} : {}" % (max_hostname_len, get_max_len(nodes,("InstanceStatus","Status"))+1)
 
         for instance_group in (cluster["InstanceGroups"] + cluster["RestrictedInstanceGroups"]):
 
-            self.poutput(format_string_ig.format( instance_group["InstanceGroupName"], instance_group["InstanceType"] ))
+            self.poutput(format_string_ig.format( instance_group["InstanceGroupName"], instance_group["InstanceType"], instance_group["Status"], instance_group["CurrentCount"], instance_group["TargetCount"] ))
             
             for node in nodes:
                 if node["InstanceGroupName"]==instance_group["InstanceGroupName"]:
@@ -663,6 +668,13 @@ class HyperPodCommands:
 
                 if cluster["ClusterStatus"] not in ["InService","Failed"]:
                     status_list.append(f"{args.cluster_name}:{cluster['ClusterStatus']}")
+
+                for instance_group in cluster["InstanceGroups"]:
+                    instance_group_name = instance_group["InstanceGroupName"]
+                    if instance_group["Status"] not in ["InService","Failed"]:
+                        status_list.append(f"{instance_group_name}:{instance_group['Status']}")
+                    if instance_group["CurrentCount"] != instance_group["TargetCount"]:
+                        status_list.append(f"{instance_group_name}:Scaling({instance_group['CurrentCount']}->{instance_group['TargetCount']})")
 
                 nodes = list_cluster_nodes_all( sagemaker_client, args.cluster_name )
 
@@ -1097,6 +1109,41 @@ class HyperPodCommands:
 
 
     argparser.set_defaults(func=_do_kubeconfig)
+
+
+    # ---
+
+    argparser = subparsers1.add_parser("events", help="Print historical events")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of HyperPod cluster")
+
+    def _do_events(self, args):
+
+        sagemaker_client = self.get_sagemaker_client()
+
+        try:
+            events = list_cluster_events_all( sagemaker_client, args.cluster_name )
+        except sagemaker_client.exceptions.ResourceNotFound:
+            self.poutput(f"Cluster [{args.cluster_name}] not found.")
+            return
+        
+        self.poutput(f"Timestamp\tResourceType\tInstanceGroup\tInstance\tDescription")
+        for event in events:
+            event_time = event["EventTime"]
+            resource_type = event["ResourceType"]
+            if "InstanceGroupName" in event:
+                instance_group_name = event["InstanceGroupName"]
+            else:
+                instance_group_name = ""
+            if "InstanceId" in event:
+                instance_id = event["InstanceId"]
+            else:
+                instance_id = ""
+            description = event["Description"]
+
+            self.poutput(f"{event_time}\t{resource_type}\t{instance_group_name}\t{instance_id}\t{description}")
+
+
+    argparser.set_defaults(func=_do_events)
 
 
     # ---

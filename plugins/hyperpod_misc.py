@@ -66,6 +66,32 @@ def list_cluster_nodes_all(sagemaker_client, cluster_name):
     return nodes
 
 
+def list_cluster_events_all(sagemaker_client, cluster_name):
+
+    events = []
+    next_token = None
+
+    while True:
+        
+        params = {
+            "ClusterName" : cluster_name
+        }
+        if next_token:
+            params["NextToken"] = next_token
+
+        response = sagemaker_client.list_cluster_events(**params)
+
+        events += response["Events"]
+
+        if "NextToken" in response and response["NextToken"]:
+            next_token = response["NextToken"]
+            continue
+
+        break
+
+    return events
+
+
 def list_log_streams_all(logs_client, log_group):
 
     streams = []
