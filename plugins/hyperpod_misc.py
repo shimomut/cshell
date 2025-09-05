@@ -6,16 +6,6 @@ import boto3
 import misc
 
 
-def get_region():
-
-    if "AWS_REGION" in os.environ:
-        return os.environ["AWS_REGION"]
-    
-    boto3_session = boto3.session.Session()
-    region = boto3_session.region_name
-    return region
-
-
 def list_clusters_all(sagemaker_client):
 
     clusters = []    

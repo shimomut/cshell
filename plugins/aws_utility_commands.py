@@ -2,6 +2,8 @@ import time
 import datetime
 import decimal
 import fnmatch
+import urllib.parse
+import webbrowser
 
 import cmd2
 import boto3
@@ -23,6 +25,7 @@ class AwsUtilityCommands:
         self.cached_ec2_instance_name_choices = []
         self.cached_log_group_name_choices = []
         self.cached_log_stream_name_choices = {}
+        self.cached_cf_stack_name_choices = []
 
 
     # -----
@@ -34,6 +37,7 @@ class AwsUtilityCommands:
         self.cached_ec2_instance_name_choices = []
         self.cached_log_group_name_choices = []
         self.cached_log_stream_name_choices = {}
+        self.cached_cf_stack_name_choices = []
 
         return data
 
@@ -128,6 +132,18 @@ class AwsUtilityCommands:
             self.cached_log_stream_name_choices[group_name].append(stream["logStreamName"])
 
         return self.cached_log_stream_name_choices[group_name]
+
+
+    def choices_cf_stack_names(self, arg_tokens):
+
+        if self.cached_cf_stack_name_choices:
+            return self.cached_cf_stack_name_choices
+
+        cf_client = get_boto3_client("cloudformation")
+        for stack in self._list_cf_stacks_all(cf_client, include_deleted=False, include_successfully_completed=True, include_nested=True):
+            self.cached_cf_stack_name_choices.append(stack["StackName"])
+
+        return self.cached_cf_stack_name_choices
 
 
     # --------
@@ -644,4 +660,38 @@ class AwsUtilityCommands:
             time.sleep(5)
 
     argparser.set_defaults(func=_do_cf_wait)
+
+
+    # ---
+
+    argparser = subparsers2.add_parser("open", help="Open the CloudFormation management console")
+    argparser.add_argument("stack_name", metavar="STACK_NAME", choices_provider=choices_cf_stack_names, help="CloudFormation stack name")
+
+    def _do_cf_open(self, args):
+
+        region = get_region()
+
+        cf_client = get_boto3_client("cloudformation")
+        stacks = self._list_cf_stacks_all(cf_client, include_deleted=False, include_successfully_completed=True, include_nested=True)
+
+        stack_arn = None
+        for stack in stacks:
+            if stack["StackName"]==args.stack_name:
+                stack_arn = stack["StackId"]
+                break
+
+        if not stack_arn:
+            self.poutput(f"Stack [{args.stack_name}] not found.")
+            return
+
+        url_encoded_stack_arn = urllib.parse.quote(stack_arn)
+
+        url = f"https://{region}.console.aws.amazon.com/cloudformation/home?region={region}#/stacks?stackId={url_encoded_stack_arn}"
+
+        self.poutput(f"Opening {url}")
+        
+        webbrowser.open(url)        
+
+
+    argparser.set_defaults(func=_do_cf_open)
 

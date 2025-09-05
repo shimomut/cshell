@@ -19,6 +19,16 @@ def get_boto3_client(service_name):
     return boto3.client(service_name, region_name=region_name)
 
 
+def get_region():
+
+    if "AWS_REGION" in os.environ:
+        return os.environ["AWS_REGION"]
+    
+    boto3_session = boto3.session.Session()
+    region = boto3_session.region_name
+    return region
+
+
 def get_max_len( d, keys ):
 
     if not isinstance( keys, (list,tuple) ):
