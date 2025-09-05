@@ -386,9 +386,11 @@ class HyperPodCommands:
             del instance_group["Status"]
             if "TrainingPlanStatus" in instance_group:
                 del instance_group["TrainingPlanStatus"]
-            instance_group["ImageId"] = instance_group["DesiredImageId"]
-            del instance_group["CurrentImageId"]
-            del instance_group["DesiredImageId"]
+            if "DesiredImageId" in instance_group:
+                instance_group["ImageId"] = instance_group["DesiredImageId"]
+                del instance_group["DesiredImageId"]
+            if "CurrentImageId" in instance_group:
+                del instance_group["CurrentImageId"]
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
                 instance_group["InstanceCount"] = args.target_instance_count
