@@ -516,3 +516,132 @@ class AwsUtilityCommands:
 
     argparser.set_defaults(func=_do_logs_export)
 
+
+    # ----------------
+    # commands - cf
+
+    argparser = subparsers1.add_parser("cf", help="CloudFormation commands")
+    subparsers2 = argparser.add_subparsers(title="sub-commands")
+
+
+    # ---
+
+    def _list_cf_stacks_all(self, cf_client, include_deleted=False, include_successfully_completed=False, include_nested=False):
+
+        # Full status filter
+        status_filter = set([
+            "CREATE_IN_PROGRESS",
+            "CREATE_FAILED",
+            "CREATE_COMPLETE",
+            "ROLLBACK_IN_PROGRESS",
+            "ROLLBACK_FAILED",
+            "ROLLBACK_COMPLETE",
+            "DELETE_IN_PROGRESS",
+            "DELETE_FAILED",
+            "DELETE_COMPLETE",
+            "UPDATE_IN_PROGRESS",
+            "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",
+            "UPDATE_COMPLETE",
+            "UPDATE_ROLLBACK_IN_PROGRESS",
+            "UPDATE_ROLLBACK_FAILED",
+            "UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS",
+            "UPDATE_ROLLBACK_COMPLETE",
+            "REVIEW_IN_PROGRESS",
+            "IMPORT_IN_PROGRESS",
+            "IMPORT_COMPLETE",
+            "IMPORT_ROLLBACK_IN_PROGRESS",
+            "IMPORT_ROLLBACK_FAILED",
+            "IMPORT_ROLLBACK_COMPLETE",
+        ])
+
+        if not include_deleted:
+            status_filter.remove("DELETE_COMPLETE")
+
+        if not include_successfully_completed:
+            status_filter -= set([
+                "CREATE_COMPLETE",
+                "DELETE_COMPLETE",
+                "UPDATE_COMPLETE",
+                "IMPORT_COMPLETE",
+            ])
+
+        # list all cloudformation stacks
+        stacks = []
+        next_token = None
+
+        while True:
+            
+            params = {
+                "StackStatusFilter" : list(status_filter)
+            }
+
+            if next_token:
+                params["NextToken"] = next_token
+
+            response = cf_client.list_stacks( **params )
+
+            stacks += response["StackSummaries"]
+
+            if "NextToken" in response:
+                next_token = response["NextToken"]
+            else:
+                break
+
+        if not include_nested:
+            stacks = [ stack for stack in stacks if not "ParentId" in stack ]
+
+        return stacks
+
+    # ---
+
+    argparser = subparsers2.add_parser('list', help='List CloudFormation stacks')
+    argparser.add_argument('--include-deleted', action='store_true', default=False, help='Include deleted stacks')
+    argparser.add_argument('--include-nested', action='store_true', default=False, help='Include nested stacks')
+
+    def _do_cf_list(self, args):
+
+        cf_client = get_boto3_client("cloudformation")
+
+        stacks = self._list_cf_stacks_all(cf_client, include_deleted=args.include_deleted, include_successfully_completed=True, include_nested=args.include_nested)
+
+        format_string = "{:<%d} : {:<%d} : {}" % (get_max_len(stacks,"StackName"), get_max_len(stacks,"StackStatus"))
+
+        for stack in stacks:
+            stack_name = stack["StackName"]
+            stack_status = stack["StackStatus"]
+            nested = "ParentId" in stack
+
+            self.poutput( format_string.format(stack_name, stack_status, "(nested)" if nested else "") )
+
+    argparser.set_defaults(func=_do_cf_list)
+
+
+    # ---
+
+    argparser = subparsers2.add_parser("wait", help="Wait until all CloudFormation operation finishes")
+
+    def _do_cf_wait(self, args):
+
+        cf_client = get_boto3_client("cloudformation")
+
+        progress_dots = ProgressDots()
+
+        while True:
+            status_list = []
+
+            stacks = self._list_cf_stacks_all(cf_client, include_nested=True)
+
+            for stack in stacks:
+                if stack["StackStatus"].endswith("_IN_PROGRESS"):
+                    status_list.append( stack["StackName"] + ":" + stack["StackStatus"] )
+
+            progress_dots.tick(", ".join(status_list))
+
+            if not status_list:
+                progress_dots.tick(None)
+                break
+
+            time.sleep(5)
+
+    argparser.set_defaults(func=_do_cf_wait)
+

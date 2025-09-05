@@ -1047,9 +1047,9 @@ class HyperPodCommands:
     # ---
 
     #_search_capacity_regions = [ "us-east-1", "us-east-2", "us-west-2", "ap-northeast-1" ]
-    _search_capacity_regions = [ "us-east-1", "us-west-2", "ap-northeast-1" ]
+    _search_capacity_regions = [ "us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-northeast-1" ]
     _instance_type_choices = [
-        "ml.trn1.32xlarge", "ml.p5.48xlarge", "ml.p4d.24xlarge", "ml.t3.xlarge", "ml.trn2.48xlarge", "ml.p5e.48xlarge", "ml.c4.large", "ml.c6i.large", "ml.t3.2xlarge", "ml.p5en.48xlarge", "ml.t3.large", "ml.c7g.medium"
+        "ml.trn1.32xlarge", "ml.p5.48xlarge", "ml.p5e.48xlarge", "ml.p5en.48xlarge", "ml.p4d.24xlarge", "ml.t3.xlarge", "ml.trn2.48xlarge", "ml.p5e.48xlarge", "ml.c4.large", "ml.c6i.large", "ml.t3.2xlarge", "ml.p5en.48xlarge", "ml.t3.large", "ml.c7g.medium"
     ]
 
     argparser = subparsers1.add_parser("search-capacity", help="Search Flexible Training Plans offerings in all regions")
@@ -1058,6 +1058,8 @@ class HyperPodCommands:
     argparser.add_argument("--duration-hours", action="store", type=int, required=True, help="Requested duration in hours")
 
     def _do_search_capacity(self, args):
+
+        self.poutput(f"Seaching capacity in {HyperPodCommands._search_capacity_regions}")
 
         for region in HyperPodCommands._search_capacity_regions:
 
@@ -1069,7 +1071,16 @@ class HyperPodCommands:
             }
 
             sagemaker_client = self.get_sagemaker_client(region_name=region)
-            response = sagemaker_client.search_training_plan_offerings(**params)
+
+            # response = sagemaker_client.search_training_plan_offerings(**params)
+
+            try:
+                response = sagemaker_client.search_training_plan_offerings(**params)
+            except sagemaker_client.exceptions.ClientError as e:
+                if "Invalid instance type" in str(e):
+                    continue
+                else:
+                    raise
 
             training_plan_offerings = response["TrainingPlanOfferings"]
 

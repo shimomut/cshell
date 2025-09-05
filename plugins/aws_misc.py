@@ -19,6 +19,45 @@ def get_boto3_client(service_name):
     return boto3.client(service_name, region_name=region_name)
 
 
+def get_max_len( d, keys ):
+
+    if not isinstance( keys, (list,tuple) ):
+        keys = [keys]
+
+    max_len = 0
+    for item in d:
+        for k in keys:
+            item = item[k]
+        max_len = max(len(item),max_len)
+    return max_len
+
+
+class ProgressDots:
+
+    def __init__(self):
+        self.status = None
+
+    def tick(self,status):
+
+        if self.status != status:
+
+            # first line doesn't require line break
+            if self.status is not None:
+                print()
+
+            self.status = status
+
+            # print new status if not ending
+            if self.status is not None:
+                print(self.status, end=" ", flush=True)
+
+            return
+
+        # print dots if status didn't change
+        if self.status is not None:
+            print(".", end="", flush=True)
+
+
 class LogsExporter:
 
     def __init__(self, logs_client, log_group, s3_path, start_datetime, end_datetime):
