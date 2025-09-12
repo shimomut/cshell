@@ -29,6 +29,36 @@ def get_region():
     return region
 
 
+def get_cli_profiles():
+
+    profiles = {}
+
+    aws_config_path = os.path.expanduser("~/.aws/config")
+    if os.path.exists(aws_config_path):
+        with open(aws_config_path) as fd:
+            profile_name = ""
+            for line in fd:
+                re_result = re.match( r"\[default\]", line.strip() )
+                if re_result:
+                    profile_name = "default"
+                    profiles[profile_name] = {}
+                    continue
+
+                re_result = re.match( r"\[profile\s(.+)\]", line.strip() )
+                if re_result:
+                    profile_name = re_result.group(1)
+                    profiles[profile_name] = {}
+                    continue
+
+                re_result = re.match( r"credential_process.*\-\-awscli\s+\b(\d{12})\b.*\-\-role\s+([A-Za-z0-9_-]+)", line.strip() )
+                if re_result:
+                    profiles[profile_name]["account"] = re_result.group(1)
+                    profiles[profile_name]["role"] = re_result.group(2)
+                    continue
+    
+    return profiles
+
+
 def get_max_len( d, keys ):
 
     if not isinstance( keys, (list,tuple) ):

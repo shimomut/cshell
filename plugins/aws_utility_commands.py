@@ -47,20 +47,8 @@ class AwsUtilityCommands:
 
     def choices_aws_profiles(self, arg_tokens):
 
-        choices = []
-
-        aws_config_path = os.path.expanduser("~/.aws/config")
-        if os.path.exists(aws_config_path):
-            with open(aws_config_path) as fd:
-                for line in fd:
-                    re_result = re.match( r"\[profile\s(.+)\]", line.strip() )
-                    if re_result:
-                        profile = re_result.group(1)
-                        choices.append(profile)
-
-        choices.append("default")
-
-        return choices
+        profile_names = get_cli_profiles().keys()
+        return list(profile_names)
 
 
     def choices_aws_regions(self, arg_tokens):
