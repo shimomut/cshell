@@ -8,6 +8,8 @@ import webbrowser
 import cmd2
 import boto3
 
+import misc
+
 from .aws_misc import *
 
 
@@ -19,6 +21,10 @@ class AwsUtilityCommands:
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
+
+        user_config = misc.UserConfig.instance()
+        aws_config = user_config.get("AwsConfig")
+        self.console_url_modifier_func = getattr(aws_config, "console_url_modifier_func", None)
 
         self.register_postcmd_hook(self.on_awsut_command_executed)
 
@@ -676,10 +682,14 @@ class AwsUtilityCommands:
 
         url = f"https://{region}.console.aws.amazon.com/cloudformation/home?region={region}#/stacks?stackId={url_encoded_stack_arn}"
 
+        if self.console_url_modifier_func:
+            profile_name = os.environ.get("AWS_PROFILE", "default")
+            profile = get_cli_profiles()[profile_name]
+            url = self.console_url_modifier_func(profile["account"], profile["role"], url)
+
         self.poutput(f"Opening {url}")
         
         webbrowser.open(url)        
-
 
     argparser.set_defaults(func=_do_cf_open)
 
