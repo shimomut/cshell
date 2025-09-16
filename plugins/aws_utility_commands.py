@@ -23,8 +23,8 @@ class AwsUtilityCommands:
         super().__init__(*args, **kwargs)
 
         user_config = misc.UserConfig.instance()
-        aws_config = user_config.get("AwsConfig")
-        self.console_url_modifier_func = getattr(aws_config, "console_url_modifier_func", None)
+        self.aws_config = user_config.get("AwsConfig")
+        self.console_url_modifier_func = getattr(self.aws_config, "console_url_modifier_func", None)
 
         self.register_postcmd_hook(self.on_awsut_command_executed)
 
@@ -53,7 +53,7 @@ class AwsUtilityCommands:
 
     def choices_aws_profiles(self, arg_tokens):
 
-        profile_names = get_cli_profiles().keys()
+        profile_names = get_all_profiles().keys()
         return list(profile_names)
 
 
@@ -71,6 +71,11 @@ class AwsUtilityCommands:
         ]
 
         return choices
+
+
+    def choices_console_pages(self, arg_tokens):
+        console_pages = getattr(self.aws_config, "console_pages", [])
+        return list(console_pages.keys())
 
 
     def choices_ec2_instance_names(self, arg_tokens):
@@ -193,6 +198,45 @@ class AwsUtilityCommands:
             os.environ["AWS_DEFAULT_REGION"] = args.region_name
 
     argparser.set_defaults(func=_do_region)
+
+
+    # ------------------
+    # commands - console
+
+    argparser = subparsers1.add_parser("console", help="Open Management Console")
+    argparser.add_argument("page_name", metavar="PAGE_NAME", action="store", choices_provider=choices_console_pages, help="Name of page")
+
+    def _do_console(self, args):
+
+        # Get URL from the config
+        console_pages = getattr(self.aws_config, "console_pages", [])
+        url = console_pages[args.page_name]
+
+        # insert region in the URL
+        region = get_region()
+        parsed_url = urllib.parse.urlparse(url)
+        query_params = urllib.parse.parse_qs(parsed_url.query)
+        query_params["region"] = [region]
+        new_query = urllib.parse.urlencode(query_params, doseq=True)        
+        url = urllib.parse.urlunparse((
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.params,
+            new_query,
+            parsed_url.fragment
+        ))
+
+        if self.console_url_modifier_func:
+            profile_name = get_profile()
+            profile = get_all_profiles()[profile_name]
+            url = self.console_url_modifier_func(profile["account"], profile["role"], url)
+
+        self.poutput(f"Opening {url}")
+        
+        webbrowser.open(url)        
+
+    argparser.set_defaults(func=_do_console)
 
 
     # ----------------
@@ -683,8 +727,8 @@ class AwsUtilityCommands:
         url = f"https://{region}.console.aws.amazon.com/cloudformation/home?region={region}#/stacks?stackId={url_encoded_stack_arn}"
 
         if self.console_url_modifier_func:
-            profile_name = os.environ.get("AWS_PROFILE", "default")
-            profile = get_cli_profiles()[profile_name]
+            profile_name = get_profile()
+            profile = get_all_profiles()[profile_name]
             url = self.console_url_modifier_func(profile["account"], profile["role"], url)
 
         self.poutput(f"Opening {url}")

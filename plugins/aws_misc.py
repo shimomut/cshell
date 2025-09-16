@@ -29,7 +29,12 @@ def get_region():
     return region
 
 
-def get_cli_profiles():
+def get_profile():
+    profile_name = os.environ.get("AWS_PROFILE", "default")
+    return profile_name
+    
+
+def get_all_profiles():
 
     profiles = {}
 

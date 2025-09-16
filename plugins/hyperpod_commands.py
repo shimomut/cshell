@@ -858,10 +858,7 @@ class HyperPodCommands:
 
         cluster_id = cluster["ClusterArn"].split("/")[-1]
 
-        if "AWS_PROFILE" in os.environ:
-            profile = os.environ["AWS_PROFILE"]
-        else:
-            profile = "default"
+        profile = get_profile()
 
         for instance_group in (cluster["InstanceGroups"] + cluster["RestrictedInstanceGroups"]):
             node_index = 0

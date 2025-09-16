@@ -17,3 +17,9 @@ class Config:
 class AwsConfig:
     awscli = ["aws"]
 
+    console_pages = {
+        "home": "https://console.aws.amazon.com/console/home",
+        "s3": "https://console.aws.amazon.com/s3/home",
+        "hyperpod": "https://console.aws.amazon.com/sagemaker/home#/cluster-management",
+    }
+
