@@ -20,6 +20,8 @@ class AwsConfig:
     console_pages = {
         "home": "https://console.aws.amazon.com/console/home",
         "s3": "https://console.aws.amazon.com/s3/home",
+        "iam": "https://console.aws.amazon.com/iam/home",
+        "cf": "https://console.aws.amazon.com/cloudformation/home",
         "hyperpod": "https://console.aws.amazon.com/sagemaker/home#/cluster-management",
     }
 
