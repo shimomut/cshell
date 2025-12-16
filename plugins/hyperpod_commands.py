@@ -437,6 +437,72 @@ class HyperPodCommands:
 
     # ---
 
+    def _batch_node_operation_common(self, operation_name, api, args):
+
+        params = {
+            "ClusterName" : args.cluster_name,
+            "NodeIds" : []
+        }
+
+        for node_id in args.node_ids:
+
+            # Remove instance group name part
+            if "/" in node_id:
+                node_id = node_id.split("/")[-1]
+
+            # Convert hostname to node id
+            if node_id.startswith("ip-"):
+                hostnames = Hostnames.instance()
+                hostnames.resolve(sagemaker_client, cluster, nodes)
+                node_id = hostnames.get_node_id(node_id)
+            
+            params["NodeIds"].append(node_id)
+
+        response = api(**params)
+        self.poutput(f"{operation_name} : {response}")
+
+
+    # ---
+
+    argparser = subparsers1.add_parser("delete-nodes", help="Delete specific nodes")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("node_ids", metavar="NODE_IDS", nargs="+", action="store", default=[], choices_provider=choices_node_ids_without_cwlog, help="Ids of node")
+
+    def _do_delete_nodes(self, args):
+        sagemaker_client = self.get_sagemaker_client()
+        self._batch_node_operation_common("Delete nodes", sagemaker_client.batch_delete_cluster_nodes, args)
+
+    argparser.set_defaults(func=_do_delete_nodes)
+
+
+    # ---
+
+    argparser = subparsers1.add_parser("reboot-nodes", help="Reboot specific nodes")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("node_ids", metavar="NODE_IDS", nargs="+", action="store", default=[], choices_provider=choices_node_ids_without_cwlog, help="Ids of node")
+
+    def _do_reboot_nodes(self, args):
+        sagemaker_client = self.get_sagemaker_client()
+        self._batch_node_operation_common("Reboot nodes", sagemaker_client.batch_reboot_cluster_nodes, args)
+
+    argparser.set_defaults(func=_do_reboot_nodes)
+
+
+    # ---
+
+    argparser = subparsers1.add_parser("replace-nodes", help="Replace specific nodes")
+    argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
+    argparser.add_argument("node_ids", metavar="NODE_IDS", nargs="+", action="store", default=[], choices_provider=choices_node_ids_without_cwlog, help="Ids of node")
+
+    def _do_replace_nodes(self, args):
+        sagemaker_client = self.get_sagemaker_client()
+        self._batch_node_operation_common("Replace nodes", sagemaker_client.batch_replace_cluster_nodes, args)
+
+    argparser.set_defaults(func=_do_replace_nodes)
+
+
+    # ---
+
     argparser = subparsers1.add_parser("update-software", help="Update the AMI of a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--instance-group-name", action="store", required=False, choices_provider=choices_instance_group_names, help="Instance group name to apply software update (default: all instance groups)")
