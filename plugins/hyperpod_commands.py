@@ -384,6 +384,10 @@ class HyperPodCommands:
             del instance_group["CurrentCount"]
             del instance_group["TargetCount"]
             del instance_group["Status"]
+            if "ActiveOperations" in instance_group:
+                del instance_group["ActiveOperations"]
+            if "FailureMessages" in instance_group:
+                del instance_group["FailureMessages"]
             if "TrainingPlanStatus" in instance_group:
                 del instance_group["TrainingPlanStatus"]
             if "DesiredImageId" in instance_group:
@@ -391,6 +395,14 @@ class HyperPodCommands:
                 del instance_group["DesiredImageId"]
             if "CurrentImageId" in instance_group:
                 del instance_group["CurrentImageId"]
+
+            if "KubernetesConfig" in instance_group:
+                instance_group["KubernetesConfig"]["Labels"] = instance_group["KubernetesConfig"]["DesiredLabels"]
+                instance_group["KubernetesConfig"]["Taints"] = instance_group["KubernetesConfig"]["DesiredTaints"]
+                del instance_group["KubernetesConfig"]["DesiredLabels"]
+                del instance_group["KubernetesConfig"]["DesiredTaints"]
+                del instance_group["KubernetesConfig"]["CurrentLabels"]
+                del instance_group["KubernetesConfig"]["CurrentTaints"]
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
                 instance_group["InstanceCount"] = args.target_instance_count
