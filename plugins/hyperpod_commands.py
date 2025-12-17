@@ -378,31 +378,35 @@ class HyperPodCommands:
         if cluster["InstanceGroups"]:
             params["InstanceGroups"] = []
 
+        def delete_dict_item_if_exist(d, key):
+            if key in d:
+                del d[key]
+
+        def rename_dict_key_if_exist(d, old_key, new_key):
+            if old_key in d:
+                d[new_key] = d[old_key]
+                del d[old_key]
+
         for instance_group in cluster["InstanceGroups"]:
 
-            instance_group["InstanceCount"] = instance_group["TargetCount"]
-            del instance_group["CurrentCount"]
-            del instance_group["TargetCount"]
-            del instance_group["Status"]
-            if "ActiveOperations" in instance_group:
-                del instance_group["ActiveOperations"]
-            if "FailureMessages" in instance_group:
-                del instance_group["FailureMessages"]
-            if "TrainingPlanStatus" in instance_group:
-                del instance_group["TrainingPlanStatus"]
-            if "DesiredImageId" in instance_group:
-                instance_group["ImageId"] = instance_group["DesiredImageId"]
-                del instance_group["DesiredImageId"]
-            if "CurrentImageId" in instance_group:
-                del instance_group["CurrentImageId"]
+            rename_dict_key_if_exist(instance_group, "TargetCount", "InstanceCount")
+            delete_dict_item_if_exist(instance_group, "CurrentCount")
+            delete_dict_item_if_exist(instance_group, "TargetCount")
+            delete_dict_item_if_exist(instance_group, "Status")
+            delete_dict_item_if_exist(instance_group, "SoftwareUpdateStatus")
+            delete_dict_item_if_exist(instance_group, "TargetStateCount")
+            delete_dict_item_if_exist(instance_group, "ActiveOperations")
+            delete_dict_item_if_exist(instance_group, "FailureMessages")
+            delete_dict_item_if_exist(instance_group, "TrainingPlanStatus")
+            rename_dict_key_if_exist(instance_group, "DesiredImageId", "ImageId")
+            delete_dict_item_if_exist(instance_group, "CurrentImageId")
 
             if "KubernetesConfig" in instance_group:
-                instance_group["KubernetesConfig"]["Labels"] = instance_group["KubernetesConfig"]["DesiredLabels"]
-                instance_group["KubernetesConfig"]["Taints"] = instance_group["KubernetesConfig"]["DesiredTaints"]
-                del instance_group["KubernetesConfig"]["DesiredLabels"]
-                del instance_group["KubernetesConfig"]["DesiredTaints"]
-                del instance_group["KubernetesConfig"]["CurrentLabels"]
-                del instance_group["KubernetesConfig"]["CurrentTaints"]
+                kubernetes_config = instance_group["KubernetesConfig"]
+                rename_dict_key_if_exist(kubernetes_config, "DesiredLabels", "Labels")
+                rename_dict_key_if_exist(kubernetes_config, "DesiredTaints", "Taints")
+                delete_dict_item_if_exist(kubernetes_config, "CurrentLabels")
+                delete_dict_item_if_exist(kubernetes_config, "CurrentTaints")
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
                 instance_group["InstanceCount"] = args.target_instance_count
@@ -414,13 +418,11 @@ class HyperPodCommands:
 
         for instance_group in cluster["RestrictedInstanceGroups"]:
 
-            instance_group["InstanceCount"] = instance_group["TargetCount"]
-            del instance_group["CurrentCount"]
-            del instance_group["TargetCount"]
-            del instance_group["Status"]
-            if "TrainingPlanStatus" in instance_group:
-                del instance_group["TrainingPlanStatus"]
-            del instance_group["EnvironmentConfig"]["S3OutputPath"]
+            rename_dict_key_if_exist(instance_group, "TargetCount", "InstanceCount")
+            delete_dict_item_if_exist(instance_group, "CurrentCount")
+            delete_dict_item_if_exist(instance_group, "Status")
+            delete_dict_item_if_exist(instance_group, "TrainingPlanStatus")
+            delete_dict_item_if_exist(instance_group["EnvironmentConfig"], "S3OutputPath")
             
             if instance_group["InstanceGroupName"]==args.instance_group_name:
                 instance_group["InstanceCount"] = args.target_instance_count
