@@ -9,7 +9,6 @@ import concurrent.futures
 import pexpect
 import pexpect.popen_spawn
 import cmd2
-from cmd2 import Bg, Fg, style
 import boto3
 
 import misc
@@ -508,7 +507,7 @@ class HyperPodCommands:
     argparser = subparsers1.add_parser("update-software", help="Update the AMI of a cluster")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
     argparser.add_argument("--instance-group-name", action="store", required=False, choices_provider=choices_instance_group_names, help="Instance group name to apply software update (default: all instance groups)")
-    argparser.add_argument("--rolling-update-by", action="store", required=False, help="Number or percentage of instances to update at the same time (e.g., 4, 10%, default: all at once)")
+    argparser.add_argument("--rolling-update-by", action="store", required=False, help="Number or percentage of instances to update at the same time (e.g., 4, 10%%, default: all at once)")
 
     def _do_update_software(self, args):
 
