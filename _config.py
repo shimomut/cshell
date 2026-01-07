@@ -22,6 +22,7 @@ class AwsConfig:
         "s3": "https://console.aws.amazon.com/s3/home",
         "iam": "https://console.aws.amazon.com/iam/home",
         "cf": "https://console.aws.amazon.com/cloudformation/home",
+        "cost": "https://console.aws.amazon.com/costmanagement/home#/cost-explorer?granularity=Daily&historicalRelativeRange=LAST_7_DAYS",
         "hyperpod": "https://console.aws.amazon.com/sagemaker/home#/cluster-management",
     }
 
