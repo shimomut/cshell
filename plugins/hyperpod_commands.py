@@ -445,6 +445,8 @@ class HyperPodCommands:
             "NodeIds" : []
         }
 
+        sagemaker_client = self.get_sagemaker_client()
+
         for node_id in args.node_ids:
 
             # Remove instance group name part
@@ -453,6 +455,15 @@ class HyperPodCommands:
 
             # Convert hostname to node id
             if node_id.startswith("ip-"):
+                try:
+                    cluster = sagemaker_client.describe_cluster(
+                        ClusterName = args.cluster_name
+                    )
+                except sagemaker_client.exceptions.ResourceNotFound:
+                    self.poutput(f"Cluster [{args.cluster_name}] not found.")
+                    return
+                
+                nodes = list_cluster_nodes_all(sagemaker_client, args.cluster_name)
                 hostnames = Hostnames.instance()
                 hostnames.resolve(sagemaker_client, cluster, nodes)
                 node_id = hostnames.get_node_id(node_id)
