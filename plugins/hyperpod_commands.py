@@ -1220,6 +1220,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("events", help="Print historical events")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of HyperPod cluster")
+    argparser.add_argument("--format", action="store", choices=["csv", "jsonl"], default="csv", help="Output format (csv or jsonl)")
 
     def _do_events(self, args):
 
@@ -1231,21 +1232,20 @@ class HyperPodCommands:
             self.poutput(f"Cluster [{args.cluster_name}] not found.")
             return
         
-        self.poutput(f"Timestamp\tResourceType\tInstanceGroup\tInstance\tDescription")
-        for event in events:
-            event_time = event["EventTime"]
-            resource_type = event["ResourceType"]
-            if "InstanceGroupName" in event:
-                instance_group_name = event["InstanceGroupName"]
-            else:
-                instance_group_name = ""
-            if "InstanceId" in event:
-                instance_id = event["InstanceId"]
-            else:
-                instance_id = ""
-            description = event["Description"]
+        if args.format == "csv":
+            self.poutput(f"Timestamp\tResourceType\tInstanceGroup\tInstance\tDescription")
+            for event in events:
+                event_time = event["EventTime"]
+                resource_type = event["ResourceType"]
+                instance_group_name = event.get("InstanceGroupName", "")
+                instance_id = event.get("InstanceId", "")
+                description = event["Description"]
 
-            self.poutput(f"{event_time}\t{resource_type}\t{instance_group_name}\t{instance_id}\t{description}")
+                self.poutput(f"{event_time}\t{resource_type}\t{instance_group_name}\t{instance_id}\t{description}")
+        
+        elif args.format == "jsonl":
+            for event in events:
+                self.poutput(json.dumps(event, default=str))
 
 
     argparser.set_defaults(func=_do_events)
