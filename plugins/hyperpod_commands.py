@@ -1221,6 +1221,7 @@ class HyperPodCommands:
     argparser = subparsers1.add_parser("events", help="Print historical events")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of HyperPod cluster")
     argparser.add_argument("--format", action="store", choices=["csv", "jsonl"], default="csv", help="Output format (csv or jsonl)")
+    argparser.add_argument("--details", action="store_true", help="Dump detailed JSON description of each event using describe-cluster-event API")
 
     def _do_events(self, args):
 
@@ -1232,7 +1233,20 @@ class HyperPodCommands:
             self.poutput(f"Cluster [{args.cluster_name}] not found.")
             return
         
-        if args.format == "csv":
+        if args.details:
+            # Fetch detailed event information using describe_cluster_event API
+            for event in events:
+                event_id = event["EventId"]
+                try:
+                    response = sagemaker_client.describe_cluster_event(
+                        ClusterName=args.cluster_name,
+                        EventId=event_id
+                    )
+                    self.poutput(json.dumps(response, default=str, indent=2))
+                except Exception as e:
+                    self.poutput(f"Error fetching details for event {event_id}: {str(e)}")
+        
+        elif args.format == "csv":
             self.poutput(f"Timestamp\tResourceType\tInstanceGroup\tInstance\tDescription")
             for event in events:
                 event_time = event["EventTime"]
