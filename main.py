@@ -1,7 +1,10 @@
 import os
 import shutil
 
+from rich.style import Style
+
 import cmd2
+from cmd2 import stylize, Color
 
 import misc
 
@@ -41,8 +44,8 @@ class CraftShellApp(*Config.plugins, cmd2.Cmd):
             include_ipy=True,
         )
 
-        #self.intro = cmd2.style("Welcome to CraftShell", fg=cmd2.Fg.RED, bg=cmd2.Bg.WHITE, bold=True)
-        self.prompt = cmd2.style("▶ ", fg=cmd2.Fg.GREEN, bg=None, bold=False)
+        #self.intro = stylize("Welcome to CraftShell", style=Style(color=Color.RED, bgcolor=Color.WHITE, bold=True))
+        self.prompt = stylize("▶ ", style=Style(color=Color.GREEN, bold=False))
 
         # Allow access to your application in py and ipy via self
         self.self_in_py = True
