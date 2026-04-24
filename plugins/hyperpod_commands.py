@@ -649,7 +649,7 @@ class HyperPodCommands:
 
     argparser = subparsers1.add_parser("describe", help="Describe cluster and its nodes in depth")
     argparser.add_argument("cluster_name", metavar="CLUSTER_NAME", action="store", choices_provider=choices_cluster_names, help="Name of cluster")
-    argparser.add_argument("--details", action="store_true", default=False, help="Show details" )
+    argparser.add_argument("--raw", action="store_true", default=False, help="Show raw JSON output from boto3 APIs" )
 
     def _do_describe(self, args):
 
@@ -665,6 +665,14 @@ class HyperPodCommands:
         
         cluster_id = cluster["ClusterArn"].split("/")[-1]
         nodes = list_cluster_nodes_all( sagemaker_client, args.cluster_name )
+
+        if args.raw:
+            raw_output = {
+                "cluster": cluster,
+                "nodes": nodes,
+            }
+            self.poutput(json.dumps(raw_output, indent=2, default=str))
+            return
 
         hostnames = Hostnames.instance()
         hostnames.resolve(sagemaker_client, cluster, nodes)
