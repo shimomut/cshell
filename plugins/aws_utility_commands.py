@@ -41,6 +41,7 @@ class AwsUtilityCommands:
 
         # Clean completer cache after each command execution
         self.cached_ec2_instance_name_choices = []
+        self.cached_cost_service_choices = []
         self.cached_log_group_name_choices = []
         self.cached_log_stream_name_choices = {}
         self.cached_cf_stack_name_choices = []
@@ -77,6 +78,24 @@ class AwsUtilityCommands:
     def choices_console_pages(self, arg_tokens):
         console_pages = getattr(self.aws_config, "console_pages", [])
         return list(console_pages.keys())
+
+
+    def choices_cost_services(self, arg_tokens):
+
+        if self.cached_cost_service_choices:
+            return self.cached_cost_service_choices
+
+        client = get_boto3_client("ce")
+        today = datetime.datetime.now().date()
+        response = client.get_dimension_values(
+            TimePeriod={
+                "Start": (today - datetime.timedelta(days=30)).strftime("%Y-%m-%d"),
+                "End": (today + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+            },
+            Dimension="SERVICE",
+        )
+        self.cached_cost_service_choices = [d["Value"] for d in response["DimensionValues"]]
+        return self.cached_cost_service_choices
 
 
     def choices_ec2_instance_names(self, arg_tokens):
@@ -245,6 +264,7 @@ class AwsUtilityCommands:
 
     argparser = subparsers1.add_parser("recent-cost", help="Show recent cost")
     argparser.add_argument('--days', action='store', type=int, default=14, help='Number of days to show')
+    argparser.add_argument('--filter', nargs='+', action='store', choices_provider=choices_cost_services, help='Filter by service name(s) and show usage type breakdown')
 
     def _do_recent_cost(self, args):
 
@@ -259,56 +279,56 @@ class AwsUtilityCommands:
             "End" : period_end.strftime("%Y-%m-%d")
         }
 
-        # Total daily cost
-        response = client.get_cost_and_usage(
-            TimePeriod=time_period,
-            Granularity="DAILY",
-            Metrics=["AmortizedCost"]
-        )
+        # Build query params based on --filter
+        ce_params = {
+            "TimePeriod": time_period,
+            "Granularity": "MONTHLY",
+            "Metrics": ["AmortizedCost"],
+        }
 
-        self.poutput("=== Daily Total ===")
-        for item in response["ResultsByTime"]:
-            start = item["TimePeriod"]["Start"]
-            amount = float(item["Total"]["AmortizedCost"]["Amount"])
-            unit = item["Total"]["AmortizedCost"]["Unit"]
-            self.poutput(f"  {start} : {amount:8.2f} {unit}")
-
-        # Service x Region table
-        response = client.get_cost_and_usage(
-            TimePeriod=time_period,
-            Granularity="MONTHLY",
-            Metrics=["AmortizedCost"],
-            GroupBy=[
+        if args.filter:
+            ce_params["Filter"] = {"Dimensions": {"Key": "SERVICE", "Values": args.filter}}
+            ce_params["GroupBy"] = [
+                {"Type": "DIMENSION", "Key": "USAGE_TYPE"},
+                {"Type": "DIMENSION", "Key": "REGION"},
+            ]
+            row_label = "Usage Type"
+            title = f"Usage Type x Region: {', '.join(args.filter)} (last {args.days} days)"
+        else:
+            ce_params["GroupBy"] = [
                 {"Type": "DIMENSION", "Key": "SERVICE"},
                 {"Type": "DIMENSION", "Key": "REGION"},
             ]
-        )
+            row_label = "Service"
+            title = f"Service x Region (last {args.days} days)"
+
+        response = client.get_cost_and_usage(**ce_params)
 
         data = {}
         region_totals = {}
-        service_totals = {}
+        row_totals = {}
 
         for item in response["ResultsByTime"]:
             for group in item["Groups"]:
-                service = group["Keys"][0]
+                row_key = group["Keys"][0]
                 region = group["Keys"][1]
                 amount = float(group["Metrics"]["AmortizedCost"]["Amount"])
                 if amount < 0.01:
                     continue
-                data.setdefault(service, {})[region] = data.get(service, {}).get(region, 0.0) + amount
+                data.setdefault(row_key, {})[region] = data.get(row_key, {}).get(region, 0.0) + amount
                 region_totals[region] = region_totals.get(region, 0.0) + amount
-                service_totals[service] = service_totals.get(service, 0.0) + amount
+                row_totals[row_key] = row_totals.get(row_key, 0.0) + amount
 
         regions = sorted(region_totals.keys(), key=lambda r: region_totals[r], reverse=True)
-        services = sorted(service_totals.keys(), key=lambda s: service_totals[s], reverse=True)
+        rows = sorted(row_totals.keys(), key=lambda s: row_totals[s], reverse=True)
 
-        if not regions or not services:
+        if not regions or not rows:
             self.poutput("\nNo cost data for table.")
             return
 
         # Determine highlight thresholds from cell values
         all_values = sorted(
-            [v for svc_data in data.values() for v in svc_data.values()],
+            [v for row_data in data.values() for v in row_data.values()],
             reverse=True
         )
         max_val = all_values[0] if all_values else 0
@@ -326,38 +346,38 @@ class AwsUtilityCommands:
                 return f"{YELLOW}{text}{RESET}"
             return text
 
-        svc_col_width = max(len(s) for s in services)
+        row_col_width = max(len(r) for r in rows)
         col_widths = {}
         for region in regions:
             col_widths[region] = max(len(region), 10)
         total_col_width = max(len("TOTAL"), 10)
 
-        header = f"  {'Service':<{svc_col_width}}"
+        header = f"  {row_label:<{row_col_width}}"
         for region in regions:
             header += f"  {region:>{col_widths[region]}}"
         header += f"  {'TOTAL':>{total_col_width}}"
-        self.poutput(f"\n=== Service x Region (last {args.days} days) ===")
+        self.poutput(f"\n=== {title} ===")
         self.poutput(header)
         self.poutput("  " + "-" * (len(header) - 2))
 
-        for service in services:
-            row = f"  {service:<{svc_col_width}}"
+        for row_key in rows:
+            row = f"  {row_key:<{row_col_width}}"
             for region in regions:
                 w = col_widths[region]
-                val = data.get(service, {}).get(region, 0.0)
+                val = data.get(row_key, {}).get(region, 0.0)
                 if val >= 0.01:
                     cell = f"{val:{w}.2f}"
                     row += f"  {colorize(val, cell)}"
                 else:
                     row += f"  {'':>{w}}"
-            total_cell = f"{service_totals[service]:{total_col_width}.2f}"
+            total_cell = f"{row_totals[row_key]:{total_col_width}.2f}"
             row += f"  {total_cell}"
             self.poutput(row)
 
-        footer = f"  {'TOTAL':<{svc_col_width}}"
+        footer = f"  {'TOTAL':<{row_col_width}}"
         for region in regions:
             footer += f"  {region_totals[region]:{col_widths[region]}.2f}"
-        footer += f"  {sum(service_totals.values()):{total_col_width}.2f}"
+        footer += f"  {sum(row_totals.values()):{total_col_width}.2f}"
         self.poutput("  " + "-" * (len(header) - 2))
         self.poutput(footer)
 
