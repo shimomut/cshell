@@ -265,6 +265,7 @@ class AwsUtilityCommands:
     argparser = subparsers1.add_parser("recent-cost", help="Show recent cost")
     argparser.add_argument('--days', action='store', type=int, default=14, help='Number of days to show')
     argparser.add_argument('--filter', nargs='+', action='store', choices_provider=choices_cost_services, help='Filter by service name(s) and show usage type breakdown')
+    argparser.add_argument('--min', action='store', type=float, default=0.1, dest='min_amount', help='Hide rows/columns with total below this amount (default: 0.1)')
 
     def _do_recent_cost(self, args):
 
@@ -319,8 +320,14 @@ class AwsUtilityCommands:
                 region_totals[region] = region_totals.get(region, 0.0) + amount
                 row_totals[row_key] = row_totals.get(row_key, 0.0) + amount
 
-        regions = sorted(region_totals.keys(), key=lambda r: region_totals[r], reverse=True)
-        rows = sorted(row_totals.keys(), key=lambda s: row_totals[s], reverse=True)
+        regions = sorted(
+            [r for r, t in region_totals.items() if t >= args.min_amount],
+            key=lambda r: region_totals[r], reverse=True
+        )
+        rows = sorted(
+            [r for r, t in row_totals.items() if t >= args.min_amount],
+            key=lambda s: row_totals[s], reverse=True
+        )
 
         if not regions or not rows:
             self.poutput("\nNo cost data for table.")
